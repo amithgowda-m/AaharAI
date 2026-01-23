@@ -1,10 +1,12 @@
+// lib/services/ai_food_service.dart - REPLACE ENTIRE FILE
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AiFoodService {
-  // ⚠️ REPLACE WITH YOUR NEW KEY (Revoke the old one!)
-  final String apiKey = ''; 
+  final String apiKey = dotenv.env['GROQ_API_KEY'] ?? '';
   final String apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
   Future<Map<String, dynamic>> identifyFood(File imageFile) async {
@@ -29,7 +31,7 @@ class AiFoodService {
                         "1. 'is_food' (boolean): true if edible food. "
                         "2. 'items' (list): Detected foods with 'name', 'calories', 'protein', 'carbs', 'fat'. "
                         "3. 'reason' (string): If not food, explain why. "
-                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Roti\", \"calories\": 100}]}"
+                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Roti\", \"calories\": 100, \"protein\": 3, \"carbs\": 18, \"fat\": 2}]}"
               },
               {
                 "type": "image_url",
@@ -54,7 +56,7 @@ class AiFoodService {
           "Content-Type": "application/json",
         },
         body: requestBody,
-      ).timeout(const Duration(seconds: 30)); // Added Timeout
+      ).timeout(const Duration(seconds: 30));
 
       print("DEBUG: 📥 Response Code: ${response.statusCode}");
       print("DEBUG: 📄 Raw Body: ${response.body}");

@@ -1,8 +1,10 @@
+// lib/features/scanner/presentation/camera_screen.dart - REPLACE ENTIRE FILE
+
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import '../../../services/ai_food_service.dart';
-import 'food_result_sheet.dart'; 
+import 'food_result_sheet.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -33,12 +35,11 @@ class _CameraScreenState extends State<CameraScreen> {
       enableAudio: false,
       imageFormatGroup: Platform.isAndroid 
           ? ImageFormatGroup.jpeg 
-          : ImageFormatGroup.bgra8888, // Better compatibility
+          : ImageFormatGroup.bgra8888,
     );
 
     try {
       await _controller!.initialize();
-      // Set initial focus mode to auto
       await _controller!.setFocusMode(FocusMode.auto);
     } catch (e) {
       debugPrint("Camera Init Error: $e");
@@ -54,14 +55,12 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _captureAndAnalyze() async {
-    // 1. Safety Checks
     if (_isLoading || _controller == null || !_controller!.value.isInitialized) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 2. THE FIX: Lock Focus & Exposure before capturing
-      // This prevents the "Waiting for focus" loop on Infinix devices
+      // Lock Focus & Exposure
       if (_controller!.value.focusPointSupported) {
         await _controller!.setFocusMode(FocusMode.locked);
       }
@@ -69,10 +68,10 @@ class _CameraScreenState extends State<CameraScreen> {
         await _controller!.setExposureMode(ExposureMode.locked);
       }
 
-      // 3. Take Picture
+      // Take Picture
       final image = await _controller!.takePicture();
 
-      // 4. Unlock Immediately (Restore Preview)
+      // Unlock Camera
       if (_controller!.value.focusPointSupported) {
         await _controller!.setFocusMode(FocusMode.auto);
       }
@@ -80,28 +79,36 @@ class _CameraScreenState extends State<CameraScreen> {
         await _controller!.setExposureMode(ExposureMode.auto);
       }
 
-      // 5. Call AI Service
+      // Call AI Service
       final result = await _aiService.identifyFood(File(image.path));
 
       setState(() => _isLoading = false);
       if (!mounted) return;
 
-      // 6. Handle Result
+      // Handle Result
       if (result['is_food'] == true) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true, 
-          backgroundColor: Colors.transparent,
-          builder: (_) => DraggableScrollableSheet(
-            initialChildSize: 0.6, 
-            minChildSize: 0.4,
-            maxChildSize: 0.9,    
-            builder: (_, controller) => SingleChildScrollView(
-              controller: controller,
-              child: FoodResultSheet(data: result), 
-            ),
-          ),
-        );
+        // IMPORTANT: Close camera first
+        Navigator.pop(context);
+        
+        // Small delay for smooth transition
+        await Future.delayed(const Duration(milliseconds: 200));
+        
+        // Show result sheet on previous screen
+        if (mounted) {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            isDismissible: false,
+            enableDrag: false,
+            backgroundColor: Colors.transparent,
+            builder: (BuildContext context) {
+              return FoodResultSheet(
+                data: result,
+                imagePath: image.path,
+              );
+            },
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -112,63 +119,144 @@ class _CameraScreenState extends State<CameraScreen> {
         );
       }
     } catch (e) {
-      // Reset state if anything fails
       setState(() => _isLoading = false);
-      // Try to unlock camera even if error occurred
       try {
-          await _controller?.setFocusMode(FocusMode.auto);
-          await _controller?.setExposureMode(ExposureMode.auto);
+        await _controller?.setFocusMode(FocusMode.auto);
+        await _controller?.setExposureMode(ExposureMode.auto);
       } catch (_) {}
       
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) return const Scaffold(backgroundColor: Colors.black);
+    if (!_isInitialized) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
+          // Camera Preview
           Center(child: CameraPreview(_controller!)),
+          
+          // Instructions Overlay
+          if (!_isLoading)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Point camera at food and tap capture',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
           
           // Capture Button
           Positioned(
-            bottom: 50, left: 0, right: 0,
+            bottom: 50,
+            left: 0,
+            right: 0,
             child: Center(
               child: GestureDetector(
-                onTap: _captureAndAnalyze,
+                onTap: _isLoading ? null : _captureAndAnalyze,
                 child: Container(
-                  height: 80, width: 80,
+                  height: 80,
+                  width: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey, width: 4),
+                    color: _isLoading ? Colors.grey : Colors.white,
+                    border: Border.all(
+                      color: _isLoading ? Colors.grey : Colors.white,
+                      width: 4,
+                    ),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 2)
-                    ]
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      )
+                    ],
                   ),
                   child: _isLoading 
-                    ? const Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Colors.black)) 
-                    : const Icon(Icons.camera_alt, size: 40, color: Colors.black),
+                      ? const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 3,
+                          ),
+                        ) 
+                      : const Icon(
+                          Icons.camera_alt,
+                          size: 40,
+                          color: Colors.black,
+                        ),
                 ),
               ),
             ),
           ),
           
+          // Loading Overlay
+          if (_isLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black54,
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Analyzing food...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
           // Back Button
           Positioned(
-            top: 50, left: 20,
+            top: 50,
+            left: 20,
             child: CircleAvatar(
-              backgroundColor: Colors.black45,
+              backgroundColor: Colors.black54,
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

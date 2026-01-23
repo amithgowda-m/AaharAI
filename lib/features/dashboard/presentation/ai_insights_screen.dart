@@ -1,168 +1,220 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:intl/intl.dart';
 
-import '../../../data/local/isar_service.dart';
-import '../../../data/local/entities/food_log.dart';
-
-final isarProvider = Provider((ref) => IsarService());
-
-final recentLogsProvider = FutureProvider.autoDispose<List<FoodLog>>((ref) async {
-  final service = ref.watch(isarProvider);
-  // Get all logs for now, or filter last 7 days if getAllLogs returns everything
-  return service.getAllLogs();
-});
-
-class AiInsightsScreen extends ConsumerStatefulWidget {
+class AiInsightsScreen extends StatelessWidget {
   const AiInsightsScreen({super.key});
 
   @override
-  ConsumerState<AiInsightsScreen> createState() => _AiInsightsScreenState();
-}
-
-class _AiInsightsScreenState extends ConsumerState<AiInsightsScreen> {
-  String _response = "";
-  bool _isLoading = false;
-  bool _hasGenerated = false;
-
-  Future<void> _generateInsights(List<FoodLog> logs) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey == 'YOUR_API_KEY_HERE') {
-      setState(() {
-        _response = "Error: GEMINI_API_KEY not found in .env file. Please add your API key.";
-        _isLoading = false;
-        _hasGenerated = true;
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _response = "";
-    });
-
-    try {
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
-
-      final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
-      final sb = StringBuffer();
-      sb.writeln("Here are my meal logs for the recent days:");
-      for (var log in logs) {
-        sb.writeln("- ${dateFormat.format(log.timestamp)}: ${log.foodName} (${log.calories} kcal, ${log.protein}g protein)");
-      }
-      sb.writeln("\nPlease analyze my nutrition habits based on this data. Give me 3 key insights and 1 actionable recommendation. Keep it concise.");
-
-      final content = [Content.text(sb.toString())];
-      final response = await model.generateContent(content);
-
-      if (mounted) {
-        setState(() {
-          _response = response.text ?? "No response generated.";
-          _isLoading = false;
-          _hasGenerated = true;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _response = "Failed to generate insights: $e";
-          _isLoading = false;
-          _hasGenerated = true;
-        });
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final asyncLogs = ref.watch(recentLogsProvider);
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("AI Insights 🤖"),
-        actions: [
-          // Refresh button
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-               setState(() {
-                 _hasGenerated = false;
-                 _response = "";
-               });
-               // Refetch logs if needed
-               ref.refresh(recentLogsProvider);
-            },
-          )
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text(
-              "Get personalized nutrition insights based on your food history.",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-              textAlign: TextAlign.center,
+      backgroundColor: Colors.transparent,
+
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0F2027),
+              Color(0xFF203A43),
+              Color(0xFF2C5364),
+            ],
+          ),
+        ),
+
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              160, // ✅ space for bottom bar + FAB
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: asyncLogs.when(
-                data: (logs) {
-                  if (logs.isEmpty) {
-                    return const Center(child: Text("No meals logged yet. Log some meals to get insights!"));
-                  }
-
-                  if (!_hasGenerated && !_isLoading) {
-                    return Center(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.auto_awesome),
-                        label: const Text("Generate Insights"),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        ),
-                        onPressed: () => _generateInsights(logs),
-                      ),
-                    );
-                  }
-
-                  if (_isLoading) {
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text("Consulting AI Nutritionist..."),
-                        ],
-                      ),
-                    );
-                  }
-
-                  // Show Response
-                  return SingleChildScrollView(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.purple.shade100),
-                      ),
-                      child: Text(
-                        _response,
-                        style: const TextStyle(fontSize: 16, height: 1.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // HEADER
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "AI Insights 🤖",
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, s) => Center(child: Text("Error loading data: $e")),
-              ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  "Get personalized nutrition insights based on your food history.",
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // GENERATE BUTTON (SAFE POSITION)
+                Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFFFB86C),
+                          Color(0xFFFF9F43),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orangeAccent.withOpacity(0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.black,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        "Generate Insights",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // INSIGHT CARDS
+                const _InsightCard(
+                  icon: Icons.lightbulb_outline,
+                  title: "No Insights Yet",
+                  subtitle:
+                      "Log meals consistently to unlock AI-powered analysis.",
+                ),
+
+                const SizedBox(height: 16),
+
+                const _InsightCard(
+                  icon: Icons.trending_up,
+                  title: "Trends & Patterns",
+                  subtitle:
+                      "Calories, protein balance, and habits will appear here.",
+                ),
+
+                const SizedBox(height: 16),
+
+                const _InsightCard(
+                  icon: Icons.health_and_safety_outlined,
+                  title: "Health Suggestions",
+                  subtitle:
+                      "Actionable recommendations based on your diet.",
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
+
+// ---------------- COMPONENT ----------------
+
+class _InsightCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _InsightCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.12),
+            ),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.white.withOpacity(0.12),
+                child: Icon(icon, color: Colors.orangeAccent),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+

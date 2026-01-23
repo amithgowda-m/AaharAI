@@ -1,6 +1,8 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import 'auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final email = TextEditingController();
   final password = TextEditingController();
   String? error;
-  bool isLoading = false;
 
   void doLogin() async {
     final e = email.text.trim();
@@ -25,16 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      error = null;
-    });
-
     final result = await AuthService.login(e, p);
-
-    if (!mounted) return;
-
-    setState(() => isLoading = false);
 
     if (result != null) {
       setState(() => error = result);
@@ -45,78 +37,90 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      body: Center(
-        child: Card(
-          margin: const EdgeInsets.all(24),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("Login", style: TextStyle(fontSize: 24)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: email,
-                  decoration: const InputDecoration(labelText: "Email"),
-                  keyboardType: TextInputType.emailAddress,
-                  enabled: !isLoading,
-                ),
-                TextField(
-                  controller: password,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: "Password"),
-                  enabled: !isLoading,
-                  onSubmitted: (_) => doLogin(),
-                ),
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(error!, style: const TextStyle(color: Colors.red)),
-                  ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : doLogin,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text("Login"),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF0F2027),
+              Color(0xFF203A43),
+              Color(0xFF2C5364),
+            ],
+          ),
+        ),
+        child: Center(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                width: 380,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.15),
                   ),
                 ),
-                TextButton(
-                  onPressed: isLoading ? null : () => context.go('/forgot-password'),
-                  child: const Text("Forgot Password?"),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Welcome Back 👋",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Login to continue",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.65),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: email,
+                      decoration: const InputDecoration(
+                        labelText: "Email",
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: password,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: "Password",
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        error!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: doLogin,
+                      child: const Text("Login"),
+                    ),
+                    TextButton(
+                      onPressed: () => context.go('/signup'),
+                      child: const Text("Create Account"),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: isLoading ? null : () => context.go('/signup'),
-                  child: const Text("Create Account"),
-                )
-              ],
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
-      prefixIcon: Icon(icon, color: Colors.white70),
-      enabledBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: Colors.white24),
-      ),
-      focusedBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: Colors.white),
+        ),
       ),
     );
   }
 }
+

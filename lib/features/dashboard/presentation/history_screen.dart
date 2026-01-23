@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -5,98 +7,236 @@ import 'package:intl/intl.dart';
 import '../../../data/local/isar_service.dart';
 import '../../../data/local/entities/food_log.dart';
 
+// ---------------- PROVIDERS ----------------
+
 final isarProvider = Provider((ref) => IsarService());
 
-final historyLogsProvider = FutureProvider.autoDispose<List<FoodLog>>((ref) async {
-  final service = ref.watch(isarProvider);
+final historyLogsProvider =
+    FutureProvider.autoDispose<List<FoodLog>>((ref) async {
+  final service = ref.read(isarProvider);
   return service.getAllLogs();
 });
+
+// ---------------- SCREEN ----------------
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncLogs = ref.watch(historyLogsProvider);
+    final logsAsync = ref.watch(historyLogsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Meal History 📜"),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0F2027),
+            Color(0xFF203A43),
+            Color(0xFF2C5364),
+          ],
+        ),
       ),
-      body: asyncLogs.when(
-        data: (logs) {
-          if (logs.isEmpty) {
-            return const Center(child: Text("No history available."));
-          }
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
 
-          // Group by Date
-          final groupedLogs = _groupByDate(logs);
-          final sortedDates = groupedLogs.keys.toList()
-            ..sort((a, b) => b.compareTo(a)); // Descending order
+          // ---------- HEADER ----------
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: const [
+                Text(
+                  "Meal History 📜",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-          return ListView.builder(
-            itemCount: sortedDates.length,
-            itemBuilder: (context, index) {
-              final date = sortedDates[index];
-              final dateLogs = groupedLogs[date]!;
-              
-              // Filter out today (since it's on Home) or keep it if desired
-              // For "History", usually we mean PAST days, but showing all is fine too.
-              // Let's show all for now.
+          const SizedBox(height: 16),
 
-              return _buildDaySection(date, dateLogs);
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text("Error: $e")),
+          // ---------- LIST ----------
+          Expanded(
+            child: logsAsync.when(
+              data: (logs) {
+                if (logs.isEmpty) {
+                  return _emptyState();
+                }
+
+                final grouped = _groupByDate(logs);
+                final dates = grouped.keys.toList()
+                  ..sort((a, b) => b.compareTo(a));
+
+                return ListView.builder(
+                  padding:
+                      const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  itemCount: dates.length,
+                  itemBuilder: (context, index) {
+                    final date = dates[index];
+                    final dayLogs = grouped[date]!;
+
+                    return _DaySection(
+                      date: date,
+                      logs: dayLogs,
+                    );
+                  },
+                );
+              },
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (_, __) =>
+                  const Center(child: Text("Failed to load history")),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // ---------- HELPERS ----------
+
   Map<DateTime, List<FoodLog>> _groupByDate(List<FoodLog> logs) {
-    final Map<DateTime, List<FoodLog>> grouped = {};
-    for (var log in logs) {
-      final date = DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day);
-      if (!grouped.containsKey(date)) {
-        grouped[date] = [];
-      }
-      grouped[date]!.add(log);
+    final Map<DateTime, List<FoodLog>> map = {};
+    for (final log in logs) {
+      final day =
+          DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day);
+      map.putIfAbsent(day, () => []).add(log);
     }
-    return grouped;
+    return map;
   }
 
-  Widget _buildDaySection(DateTime date, List<FoodLog> logs) {
-    double totalCals = logs.fold(0, (sum, item) => sum + item.calories);
-    double totalPro = logs.fold(0, (sum, item) => sum + item.protein);
+  Widget _emptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.history,
+            size: 52,
+            color: Colors.white.withOpacity(0.35),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "No history yet",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Your logged meals will appear here",
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- DAY SECTION ----------------
+
+class _DaySection extends StatelessWidget {
+  final DateTime date;
+  final List<FoodLog> logs;
+
+  const _DaySection({
+    required this.date,
+    required this.logs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCalories =
+        logs.fold<double>(0, (s, e) => s + e.calories);
+    final totalProtein =
+        logs.fold<double>(0, (s, e) => s + e.protein);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ---------- DATE HEADER ----------
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 DateFormat('MMM dd, yyyy').format(date),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               Text(
-                "${totalCals.toInt()} kcal / ${totalPro.toStringAsFixed(1)}g P",
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                "${totalCalories.toInt()} kcal / ${totalProtein.toStringAsFixed(1)}g P",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withOpacity(0.6),
+                ),
               ),
             ],
           ),
         ),
-        ...logs.map((log) => ListTile(
-          leading: const Icon(Icons.circle, size: 10, color: Colors.orange),
-          title: Text(log.foodName),
-          subtitle: Text(DateFormat('hh:mm a').format(log.timestamp)),
-          trailing: Text("${log.calories.toInt()} kcal"),
-        )),
-        const Divider(),
+
+        // ---------- MEALS ----------
+        ...logs.map(
+          (log) => Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.circle,
+                  size: 8,
+                  color: Color(0xFFFFB86C),
+                ),
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        log.foodName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        DateFormat('hh:mm a').format(log.timestamp),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Text(
+                  "${log.calories.toInt()} kcal",
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        Divider(
+          color: Colors.white.withOpacity(0.08),
+          thickness: 1,
+          height: 28,
+        ),
       ],
     );
   }
 }
+

@@ -10,13 +10,16 @@ import '../../../data/local/entities/food_log.dart';
 import 'history_screen.dart';
 import 'ai_insights_screen.dart';
 
-// --- PROVIDERS ---
+// ---------------- PROVIDERS ----------------
+
 final isarProvider = Provider((ref) => IsarService());
 
 final todaysLogsProvider = FutureProvider<List<FoodLog>>((ref) async {
-  final service = ref.watch(isarProvider);
+  final service = ref.read(isarProvider);
   return service.getTodayLogs();
 });
+
+// ---------------- SCREEN ----------------
 
 class UserHomeScreen extends ConsumerStatefulWidget {
   const UserHomeScreen({super.key});
@@ -31,43 +34,81 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
-        title: const Text("Aahar AI 🍛"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          "Aahar AI 🍛",
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () => context.push('/consultation'),
-          )
+          ),
         ],
       ),
-      body: _currentIndex == 0 
-          ? const _HomeContent() 
-          : _currentIndex == 1 
-              ? const HistoryScreen() 
-              : const AiInsightsScreen(),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text("Add Meal"),
-        onPressed: () {
-          // Navigate to AddMealScreen
-           context.push('/add_meal').then((_) {
-             // Refresh data on return
-             ref.refresh(todaysLogsProvider);
-           });
-        },
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF0F2027),
+              Color(0xFF203A43),
+              Color(0xFF2C5364),
+            ],
+          ),
+        ),
+        child: _currentIndex == 0
+            ? const _HomeContent()
+            : _currentIndex == 1
+                ? const HistoryScreen()
+                : const AiInsightsScreen(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+
+      // ---------- ADD MEAL BUTTON ----------
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.greenAccent.withOpacity(0.35),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.add, color: Colors.black),
+          label: const Text(
+            "Add Meal",
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          ),
+          onPressed: () {
+            context.push('/add_meal').then((_) {
+              ref.refresh(todaysLogsProvider);
+            });
+          },
+        ),
+      ),
+
+      // ---------- BOTTOM NAV ----------
+      bottomNavigationBar: _PremiumBottomBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.today), label: "Today"),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
-          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: "Insights"),
-        ],
+        onTap: (i) => setState(() => _currentIndex = i),
       ),
     );
   }
 }
+
+// ---------------- HOME CONTENT ----------------
 
 class _HomeContent extends ConsumerWidget {
   const _HomeContent();
@@ -75,61 +116,6 @@ class _HomeContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncLogs = ref.watch(todaysLogsProvider);
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSummaryCard(asyncLogs),
-          const SizedBox(height: 24),
-          const Text("Today's Meals", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Expanded(
-            child: asyncLogs.when(
-              data: (logs) {
-                if (logs.isEmpty) return _buildEmptyState();
-                return ListView.builder(
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final meal = logs[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: const CircleAvatar(child: Text("🥘")),
-                        title: Text(meal.foodName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(DateFormat('hh:mm a').format(meal.timestamp)),
-                        trailing: Text("${meal.calories.toInt()} kcal", 
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        onLongPress: () {
-                           ref.read(isarProvider).deleteLog(meal.id);
-                           ref.refresh(todaysLogsProvider);
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text("Error: $e")),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-  Widget _buildSummaryCard(AsyncValue<List<FoodLog>> asyncLogs) {
-    double totalCals = 0;
-    double totalPro = 0;
-    
-    if (asyncLogs.hasValue) {
-      for (var log in asyncLogs.value!) {
-        totalCals += log.calories;
-        totalPro += log.protein; 
-      }
-    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
@@ -146,28 +132,29 @@ class _HomeContent extends ConsumerWidget {
             style: TextStyle(color: Colors.white.withOpacity(0.65)),
           ),
           const SizedBox(height: 20),
-          _buildSummaryCards(asyncLogs),
+
+          _buildSummary(asyncLogs),
+
           const SizedBox(height: 28),
           const Text(
             "Today's Meals",
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
+
           Expanded(
             child: asyncLogs.when(
               data: (logs) {
-                if (logs.isEmpty) return _buildEmptyState();
+                if (logs.isEmpty) return _emptyState();
                 return ListView.builder(
                   itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    return _MealTile(meal: logs[index]);
-                  },
+                  itemBuilder: (_, i) => _MealTile(meal: logs[i]),
                 );
               },
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
               error: (_, __) =>
-                  const Center(child: Text("Error loading meals")),
+                  const Center(child: Text("Failed to load meals")),
             ),
           ),
         ],
@@ -175,7 +162,7 @@ class _HomeContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryCards(AsyncValue<List<FoodLog>> asyncLogs) {
+  Widget _buildSummary(AsyncValue<List<FoodLog>> asyncLogs) {
     double calories = 0;
     double protein = 0;
 
@@ -203,17 +190,212 @@ class _HomeContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _emptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.no_meals, size: 48, color: Colors.grey[400]),
-          const SizedBox(height: 10),
-          Text("No meals yet.", style: TextStyle(color: Colors.grey[600])),
-          Text("Tap 'Add Meal' to start.", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Icon(Icons.restaurant_menu,
+              size: 52, color: Colors.white.withOpacity(0.35)),
+          const SizedBox(height: 12),
+          const Text(
+            "No meals logged yet",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Tap Add Meal to begin",
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
         ],
       ),
     );
   }
 }
+
+// ---------------- COMPONENTS ----------------
+
+class _GlassStatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+
+  const _GlassStatCard({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MealTile extends ConsumerWidget {
+  final FoodLog meal;
+
+  const _MealTile({required this.meal});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: Colors.black45,
+          child: Text("🥗"),
+        ),
+        title: Text(
+          meal.foodName,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(DateFormat('hh:mm a').format(meal.timestamp)),
+        trailing: Text(
+          "${meal.calories.toInt()} kcal",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        onLongPress: () {
+          ref.read(isarProvider).deleteLog(meal.id);
+          ref.refresh(todaysLogsProvider);
+        },
+      ),
+    );
+  }
+}
+
+// ---------------- BOTTOM NAV ----------------
+
+class _PremiumBottomBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const _PremiumBottomBar({
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.55),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  icon: Icons.calendar_today,
+                  label: "Today",
+                  active: currentIndex == 0,
+                  onTap: () => onTap(0),
+                ),
+                _NavItem(
+                  icon: Icons.history,
+                  label: "History",
+                  active: currentIndex == 1,
+                  onTap: () => onTap(1),
+                ),
+                _NavItem(
+                  icon: Icons.auto_awesome,
+                  label: "Insights",
+                  active: currentIndex == 2,
+                  onTap: () => onTap(2),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? const Color(0xFF6EE7B7) : Colors.white70;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+

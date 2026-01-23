@@ -6,11 +6,16 @@ part 'user_profile.g.dart';
 class UserProfile {
   Id id = Isar.autoIncrement;
 
-  @Index(unique: true)
-  late String userId; // Supabase user ID
-
-  late String email;
-  String? displayName;
-  late DateTime createdAt;
-  DateTime? lastLoginAt;
+  @Index(unique: true) // Optimize search
+  late String userId;  
+  
+  late String name;
+  late int age;
+  late double weight;
+  late double height;
+  late String gender;
+  late String goal;
+  late int dailyCalorieTarget;
+  
+  double? weeklyBudget; 
 }

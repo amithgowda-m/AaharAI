@@ -15,8 +15,8 @@ dependencies:
   path_provider: ^2.1.2
   supabase_flutter: ^2.3.0
   shared_preferences: ^2.2.2
-
-  
+  camera: ^0.10.5
+  http: ^1.2.0
   # --- NAVIGATION (You were missing this!) ---
   go_router: ^14.0.0
 
@@ -24,7 +24,7 @@ dependencies:
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
   image_picker: ^1.2.1
-  google_generative_ai: ^0.4.7
+  google_generative_ai: ^0.4.6
 
 dev_dependencies:
   flutter_test:

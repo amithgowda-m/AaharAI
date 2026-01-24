@@ -40,19 +40,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // 2. User exists -> Update state with their calorie target
     setState(() {
-      _targetCalories = user.dailyCalorieTarget;
+      _targetCalories = user.dailyCalorieGoal.toInt();
     });
 
     // 3. Load Logs
+    await _loadTodayLogs(user.userId);
   }
 
-  Future<void> _loadTodayLogs() async {
-    final logs = await _isarService.getTodayLogs();
+  Future<void> _loadTodayLogs(String userId) async {
+    final logs = await _isarService.getTodayLogs(userId);
     setState(() {
       _todayLogs = logs;
       _consumedCalories = logs.fold(
         0,
-        (sum, item) => sum + item.calories.toInt(),
+        (sum, item) => sum + item.totalCalories.toInt(),
       );
     });
   }
@@ -130,7 +131,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const CameraScreen()),
               );
-              _loadTodayLogs(); // Refresh after scanning
+              final user = await _isarService.getCurrentUserProfile();
+              if (user != null) {
+                await _loadTodayLogs(user.userId);
+              }
             },
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),

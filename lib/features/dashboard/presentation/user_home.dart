@@ -9,6 +9,7 @@ import '../../../data/local/isar_service.dart';
 import '../../../data/local/entities/food_log.dart';
 import 'history_screen.dart';
 import 'ai_insights_screen.dart';
+import '../../../services/auth_service.dart';
 
 // ---------------- PROVIDERS ----------------
 
@@ -16,7 +17,8 @@ final isarProvider = Provider((ref) => IsarService());
 
 final todaysLogsProvider = FutureProvider<List<FoodLog>>((ref) async {
   final service = ref.read(isarProvider);
-  return service.getTodayLogs();
+  final userId = AuthService.getCurrentUser()?.id ?? '';
+  return service.getTodayLogs(userId);
 });
 
 // ---------------- SCREEN ----------------

@@ -34,14 +34,27 @@ final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {
     profile = UserProfile()
       ..userId = user.id
       ..email = user.email ?? ''
-      ..displayName = user.userMetadata?['display_name']
+      ..name = user.userMetadata?['display_name'] ?? 'User'
+      ..age = 25
+      ..gender = 'male'
+      ..currentWeight = 70.0
+      ..targetWeight = 70.0
+      ..height = 170.0
+      ..goal = 'maintain'
+      ..activityLevel = 'moderate'
+      ..exerciseGoal = 'none'
+      ..dailyCalorieGoal = 2100.0
+      ..dailyProteinGoal = 105.0
+      ..dailyCarbsGoal = 260.0
+      ..dailyFatGoal = 70.0
+      ..dailyFiberGoal = 30.0
       ..createdAt = DateTime.parse(user.createdAt)
-      ..lastLoginAt = DateTime.now();
+      ..updatedAt = DateTime.now();
 
     await isarService.saveUserProfile(profile);
   } else {
     // Update last login time
-    profile.lastLoginAt = DateTime.now();
+    profile.updatedAt = DateTime.now();
     await isarService.saveUserProfile(profile);
   }
 

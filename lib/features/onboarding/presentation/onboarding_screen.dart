@@ -50,15 +50,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     // 3. Create Profile Object
     final profile = UserProfile()
-      ..userId =
-          "user_01" // Simple local ID for now
+      ..userId = "user_01" // Simple local ID for now
+      ..email = "user@example.com"
       ..name = _nameController.text
       ..age = age
-      ..weight = weight
+      ..currentWeight = weight
+      ..targetWeight = weight
       ..height = height
-      ..gender = _gender
-      ..goal = _goal
-      ..dailyCalorieTarget = targetCalories;
+      ..gender = _gender.toLowerCase()
+      ..goal = _goal.toLowerCase()
+      ..activityLevel = 'moderate'
+      ..exerciseGoal = 'none'
+      ..dailyCalorieGoal = targetCalories.toDouble()
+      ..dailyProteinGoal = (weight * 1.5)
+      ..dailyCarbsGoal = (targetCalories * 0.5) / 4
+      ..dailyFatGoal = (targetCalories * 0.25) / 9
+      ..dailyFiberGoal = 30.0;
 
     // 4. Save to Database
     final isarService = IsarService();

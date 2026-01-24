@@ -1,8 +1,8 @@
-// lib/features/dashboard/presentation/main_navigation_screen.dart - CREATE THIS FILE 📝
-
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'history_screen.dart';
 import '../../scanner/presentation/camera_screen.dart';
+import '../../nutria_chat/presentation/chat_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   @override
@@ -15,8 +15,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = [
     HomeScreen(),           // Dashboard
     CameraScreen(),         // Your existing scanner
-    PlaceholderScreen(title: 'History'),
-    PlaceholderScreen(title: 'Nutira Chat'),
+    HistoryScreen(),        // Actual history screen
+    NutiraChatScreen(),     // Chat screen
   ];
   
   @override

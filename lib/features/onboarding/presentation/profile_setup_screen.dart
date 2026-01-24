@@ -30,15 +30,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     if (_formKey.currentState!.validate()) {
       final profile = UserProfile()
         ..userId = DateTime.now().millisecondsSinceEpoch.toString()
+        ..email = "user@example.com"
         ..name = _nameController.text.trim()
         ..gender = selectedGender
         ..age = age
-        ..weight = weight
+        ..currentWeight = weight
+        ..targetWeight = weight
         ..height = height
+        ..goal = 'maintain'
+        ..activityLevel = 'moderate'
+        ..exerciseGoal = 'moderate'
         ..dailyCalorieGoal = 2100.0
         ..dailyProteinGoal = 105.0
         ..dailyCarbsGoal = 260.0
-        ..dailyFatGoal = 70.0;
+        ..dailyFatGoal = 70.0
+        ..dailyFiberGoal = 30.0;
 
       await _isarService.saveUserProfile(profile);
 

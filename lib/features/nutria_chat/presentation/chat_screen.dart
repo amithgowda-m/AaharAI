@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../services/nutria_service.dart';
 
 class NutiraChatScreen extends StatefulWidget {
   const NutiraChatScreen({super.key});
@@ -10,6 +11,8 @@ class NutiraChatScreen extends StatefulWidget {
 class _NutiraChatScreenState extends State<NutiraChatScreen> {
   final List<ChatMessage> messages = [];
   final TextEditingController _controller = TextEditingController();
+  final NutriaService _nutriaService = NutriaService();
+  bool _isLoading = false;
   
   @override
   void initState() {
@@ -27,6 +30,7 @@ class _NutiraChatScreenState extends State<NutiraChatScreen> {
 
     setState(() {
       messages.add(ChatMessage(text: query, isUser: true));
+      _isLoading = true;
     });
     _controller.clear();
     
@@ -35,16 +39,29 @@ class _NutiraChatScreenState extends State<NutiraChatScreen> {
       messages.add(ChatMessage(text: '...', isUser: false, isTyping: true));
     });
     
-    // Simulate AI response for now since NutiraRagService is missing or undefined
-    await Future.delayed(const Duration(seconds: 1));
+    // Prepare history for API
+    List<Map<String, String>> history = messages
+        .where((m) => !m.isTyping)
+        .map((m) => {
+              'role': m.isUser ? 'user' : 'assistant',
+              'content': m.text,
+            })
+        .toList();
+
+    // Get response from service
+    final response = await _nutriaService.getChatResponse(
+      message: query,
+      history: history,
+    );
     
     if (mounted) {
       setState(() {
         messages.removeLast(); // Remove typing indicator
         messages.add(ChatMessage(
-          text: "I'm currently being updated to provide better nutrition advice! Stay tuned.", 
+          text: response, 
           isUser: false
         ));
+        _isLoading = false;
       });
     }
   }

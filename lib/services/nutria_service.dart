@@ -62,6 +62,49 @@ Use emojis to make it friendly!
     }
   }
 
+  Future<String> getChatResponse({
+    required String message,
+    required List<Map<String, String>> history,
+  }) async {
+    try {
+      final messages = [
+        {
+          'role': 'system',
+          'content': '''You are Nutira, a friendly and knowledgeable AI nutritionist for the Aahar AI app.
+Your goal is to help users eat healthier, understand Indian food nutrition, and make better lifestyle choices.
+Keep your responses concise, encouraging, and easy to understand.
+Use emojis to make the conversation friendly.
+If asked about medical advice, kindly remind the user to consult a doctor.'''
+        },
+        ...history,
+        {'role': 'user', 'content': message},
+      ];
+
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.3-70b-versatile',
+          'messages': messages,
+          'temperature': 0.7,
+          'max_tokens': 1000,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['choices'][0]['message']['content'];
+      } else {
+        return 'I\'m having a bit of trouble connecting right now. 🌿 Please try again in a moment!';
+      }
+    } catch (e) {
+      return 'Oops! Something went wrong. 🌱 Please checks your internet connection.';
+    }
+  }
+
   String _getTimeOfDay(int hour) {
     if (hour < 12) return 'Morning';
     if (hour < 17) return 'Afternoon';

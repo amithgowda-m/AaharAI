@@ -1,5 +1,3 @@
-// lib/features/dashboard/presentation/home_screen.dart - REPLACE ENTIRE FILE
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'widgets/calorie_ring.dart';
@@ -9,6 +7,7 @@ import '../../profile/presentation/profile_screen.dart';
 import '../../../data/local/isar_service.dart';
 import '../../../data/local/entities/food_log.dart';
 import '../../../services/auth_service.dart';
+import '../logic/wellness_calculator.dart'; // Import the new logic
 
 class HomeScreen extends ConsumerStatefulWidget {
   @override
@@ -16,15 +15,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Stats
   double caloriesConsumed = 0.0;
-  double caloriesTarget = 2100.0;
+  double caloriesTarget = 2000.0; // Will be overwritten by Calculator
   double proteinConsumed = 0.0;
   double carbsConsumed = 0.0;
   double fatConsumed = 0.0;
   double fiberConsumed = 0.0;
+  
+  // Profile Data
   String userName = 'User';
   List<FoodLog> recentMeals = [];
   bool isLoading = true;
+
+  // Wellness Score Data
+  int wellnessScore = 100;
+  String wellnessMessage = "Start your day right!";
+  int wellnessColor = 0xFF2E7D32;
   
   @override
   void initState() {
@@ -33,6 +40,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _loadDashboardData() async {
+    if (!mounted) return;
     setState(() => isLoading = true);
 
     try {
@@ -44,14 +52,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final isarService = ref.read(isarProvider);
       
-      // Load user profile
+      // 1. Load user profile & Calculate Dynamic Goals
       final profile = await isarService.getUserProfile(currentUser.id);
+      
       if (profile != null) {
         userName = profile.name;
-        caloriesTarget = profile.dailyCalorieGoal;
+        // DYNAMIC CALCULATION:
+        caloriesTarget = WellnessCalculator.calculateDailyCalories(profile);
       }
 
-      // Load dashboard stats
+      // 2. Load dashboard stats
       final stats = await isarService.getDashboardStats(currentUser.id);
       caloriesConsumed = stats['todayCalories'] ?? 0.0;
       proteinConsumed = stats['todayProtein'] ?? 0.0;
@@ -59,13 +69,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       fatConsumed = stats['todayFat'] ?? 0.0;
       fiberConsumed = stats['todayFiber'] ?? 0.0;
 
-      // Load recent meals (today's meals)
+      // 3. Load recent meals
       recentMeals = await isarService.getTodayLogs(currentUser.id);
 
-      setState(() => isLoading = false);
+      // 4. Calculate Wellness/Metabolic Score
+      if (profile != null) {
+        final scoreData = WellnessCalculator.calculateMetabolicScore(recentMeals, profile);
+        wellnessScore = scoreData['score'];
+        wellnessMessage = scoreData['message'];
+        wellnessColor = scoreData['color'];
+      }
+
+      if (mounted) setState(() => isLoading = false);
     } catch (e) {
       print('Error loading dashboard: $e');
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -97,26 +115,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
-        backgroundColor: Color(0xFFFAFAFA),
-        body: Center(
+        backgroundColor: const Color(0xFFFAFAFA),
+        body: const Center(
           child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFFFAFAFA),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadDashboardData,
-          color: Color(0xFF2E7D32),
+          color: const Color(0xFF2E7D32),
           child: SingleChildScrollView(
-            physics: AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.all(20),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with Profile
+                // 1. Header with Profile
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -131,10 +149,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               color: Colors.grey[600],
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
                             userName,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
                             ),
@@ -143,7 +161,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ],
                       ),
                     ),
-                    // Profile Icon Button
                     GestureDetector(
                       onTap: () async {
                         await Navigator.push(
@@ -152,15 +169,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             builder: (context) => ProfileScreen(),
                           ),
                         );
-                        // Refresh data after returning from profile
                         _loadDashboardData();
                       },
                       child: CircleAvatar(
                         radius: 24,
-                        backgroundColor: Color(0xFF2E7D32),
+                        backgroundColor: const Color(0xFF2E7D32),
                         child: Text(
                           _getInitials(userName),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -171,9 +187,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
                 
-                SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // 2. NEW: Wellness Score Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(wellnessColor).withOpacity(0.85), Color(wellnessColor)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(wellnessColor).withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Score Circle
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          "$wellnessScore",
+                          style: TextStyle(
+                            fontSize: 24, 
+                            fontWeight: FontWeight.bold, 
+                            color: Color(wellnessColor)
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Insight Text
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Metabolic Score",
+                              style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              wellnessMessage,
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
                 
-                // Calorie Ring
+                // 3. Calorie Ring (Personalized Target)
                 Center(
                   child: CalorieRing(
                     consumed: caloriesConsumed,
@@ -181,9 +257,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
                 
-                // Quick Action Button
+                // 4. Quick Scan Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -191,15 +267,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onPressed: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => CameraScreen()),
+                        MaterialPageRoute(builder: (context) => const CameraScreen()),
                       );
-                      // Refresh data after returning from camera
                       _loadDashboardData();
                     },
-                    icon: Icon(Icons.camera_alt),
-                    label: Text('Scan Food', style: TextStyle(fontSize: 18)),
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Scan Food', style: TextStyle(fontSize: 18)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF2E7D32),
+                      backgroundColor: const Color(0xFF2E7D32),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -208,11 +283,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
                 
-                // Macros Section
+                // 5. Macros Section
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -220,42 +295,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Today\'s Macros',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       MacroProgressBar(
                         name: 'Protein',
                         consumed: proteinConsumed,
-                        target: 105.0,
+                        target: (caloriesTarget * 0.3) / 4, // Dynamic Goal
                         color: Colors.red,
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       MacroProgressBar(
                         name: 'Carbs',
                         consumed: carbsConsumed,
-                        target: 260.0,
+                        target: (caloriesTarget * 0.4) / 4, // Dynamic Goal
                         color: Colors.orange,
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       MacroProgressBar(
                         name: 'Fat',
                         consumed: fatConsumed,
-                        target: 70.0,
+                        target: (caloriesTarget * 0.3) / 9, // Dynamic Goal
                         color: Colors.blue,
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       MacroProgressBar(
                         name: 'Fiber',
                         consumed: fiberConsumed,
@@ -266,13 +341,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 
-                // Recent Meals Header
+                // 6. Recent Meals
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Today\'s Meals',
                       style: TextStyle(
                         fontSize: 18,
@@ -289,12 +364,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                   ],
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 
-                // Recent Meals List
                 if (recentMeals.isEmpty)
                   Container(
-                    padding: EdgeInsets.all(40),
+                    padding: const EdgeInsets.all(40),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -307,7 +381,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             size: 48,
                             color: Colors.grey[400],
                           ),
-                          SizedBox(height: 12),
+                          const SizedBox(height: 12),
                           Text(
                             'No meals logged today',
                             style: TextStyle(
@@ -315,7 +389,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontSize: 16,
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             'Tap "Scan Food" to start logging',
                             style: TextStyle(
@@ -329,6 +403,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   )
                 else
                   ...recentMeals.map((meal) => _buildRecentMealCard(meal)).toList(),
+                  
+                const SizedBox(height: 80), // Bottom padding
               ],
             ),
           ),
@@ -339,8 +415,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   
   Widget _buildRecentMealCard(FoodLog meal) {
     return Container(
-      padding: EdgeInsets.all(16),
-      margin: EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -348,7 +424,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -366,19 +442,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               color: Colors.white,
             ),
           ),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   meal.mealType,
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   meal.foodName,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -397,16 +473,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Text(
                 '${meal.totalCalories.toInt()} Cal',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF2E7D32),
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
                 _formatTime(meal.timestamp),
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -417,39 +493,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Color _getMealTypeColor(String mealType) {
     switch (mealType) {
-      case 'Breakfast':
-        return Colors.orange;
-      case 'Morning Snack':
-        return Colors.amber;
-      case 'Lunch':
-        return Colors.green;
-      case 'Evening Snack':
-        return Colors.blue;
-      case 'Dinner':
-        return Colors.deepPurple;
-      case 'Late Night Snack':
-        return Colors.indigo;
-      default:
-        return Colors.grey;
+      case 'Breakfast': return Colors.orange;
+      case 'Morning Snack': return Colors.amber;
+      case 'Lunch': return Colors.green;
+      case 'Evening Snack': return Colors.blue;
+      case 'Dinner': return Colors.deepPurple;
+      case 'Late Night Snack': return Colors.indigo;
+      default: return Colors.grey;
     }
   }
 
   IconData _getMealTypeIcon(String mealType) {
     switch (mealType) {
-      case 'Breakfast':
-        return Icons.wb_sunny;
-      case 'Morning Snack':
-        return Icons.coffee;
-      case 'Lunch':
-        return Icons.restaurant;
-      case 'Evening Snack':
-        return Icons.local_cafe;
-      case 'Dinner':
-        return Icons.dinner_dining;
-      case 'Late Night Snack':
-        return Icons.nightlight_round;
-      default:
-        return Icons.fastfood;
+      case 'Breakfast': return Icons.wb_sunny;
+      case 'Morning Snack': return Icons.coffee;
+      case 'Lunch': return Icons.restaurant;
+      case 'Evening Snack': return Icons.local_cafe;
+      case 'Dinner': return Icons.dinner_dining;
+      case 'Late Night Snack': return Icons.nightlight_round;
+      default: return Icons.fastfood;
     }
   }
 }

@@ -27,123 +27,138 @@ const FoodLogSchema = CollectionSchema(
       name: r'carbs',
       type: IsarType.double,
     ),
-    r'fat': PropertySchema(
+    r'cholesterol': PropertySchema(
       id: 2,
+      name: r'cholesterol',
+      type: IsarType.double,
+    ),
+    r'fat': PropertySchema(
+      id: 3,
       name: r'fat',
       type: IsarType.double,
     ),
     r'fiber': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'fiber',
       type: IsarType.double,
     ),
     r'foodName': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'foodName',
       type: IsarType.string,
-    ),
-    r'healthScore': PropertySchema(
-      id: 5,
-      name: r'healthScore',
-      type: IsarType.long,
     ),
     r'imagePath': PropertySchema(
       id: 6,
       name: r'imagePath',
       type: IsarType.string,
     ),
-    r'isSynced': PropertySchema(
+    r'iron': PropertySchema(
       id: 7,
+      name: r'iron',
+      type: IsarType.double,
+    ),
+    r'isSynced': PropertySchema(
+      id: 8,
       name: r'isSynced',
       type: IsarType.bool,
     ),
     r'itemCount': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'itemCount',
-      type: IsarType.long,
+      type: IsarType.double,
     ),
     r'mealType': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'mealType',
       type: IsarType.string,
     ),
     r'modifierCalories': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'modifierCalories',
       type: IsarType.double,
     ),
     r'modifierCarbs': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'modifierCarbs',
       type: IsarType.double,
     ),
     r'modifierFat': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'modifierFat',
       type: IsarType.double,
     ),
     r'modifierProtein': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'modifierProtein',
       type: IsarType.double,
     ),
     r'modifiers': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'modifiers',
       type: IsarType.stringList,
     ),
-    r'nutriaComment': PropertySchema(
-      id: 15,
-      name: r'nutriaComment',
+    r'notes': PropertySchema(
+      id: 16,
+      name: r'notes',
       type: IsarType.string,
     ),
     r'portionSize': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'portionSize',
       type: IsarType.double,
     ),
+    r'potassium': PropertySchema(
+      id: 18,
+      name: r'potassium',
+      type: IsarType.double,
+    ),
     r'protein': PropertySchema(
-      id: 17,
+      id: 19,
       name: r'protein',
       type: IsarType.double,
     ),
-    r'supabaseId': PropertySchema(
-      id: 18,
-      name: r'supabaseId',
-      type: IsarType.string,
+    r'sodium': PropertySchema(
+      id: 20,
+      name: r'sodium',
+      type: IsarType.double,
+    ),
+    r'sugar': PropertySchema(
+      id: 21,
+      name: r'sugar',
+      type: IsarType.double,
     ),
     r'timestamp': PropertySchema(
-      id: 19,
+      id: 22,
       name: r'timestamp',
       type: IsarType.dateTime,
     ),
     r'totalCalories': PropertySchema(
-      id: 20,
+      id: 23,
       name: r'totalCalories',
       type: IsarType.double,
     ),
     r'totalCarbs': PropertySchema(
-      id: 21,
+      id: 24,
       name: r'totalCarbs',
       type: IsarType.double,
     ),
     r'totalFat': PropertySchema(
-      id: 22,
+      id: 25,
       name: r'totalFat',
       type: IsarType.double,
     ),
     r'totalFiber': PropertySchema(
-      id: 23,
+      id: 26,
       name: r'totalFiber',
       type: IsarType.double,
     ),
     r'totalProtein': PropertySchema(
-      id: 24,
+      id: 27,
       name: r'totalProtein',
       type: IsarType.double,
     ),
     r'userId': PropertySchema(
-      id: 25,
+      id: 28,
       name: r'userId',
       type: IsarType.string,
     )
@@ -153,7 +168,21 @@ const FoodLogSchema = CollectionSchema(
   deserialize: _foodLogDeserialize,
   deserializeProp: _foodLogDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'userId': IndexSchema(
+      id: -2005826577402374815,
+      name: r'userId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'userId',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _foodLogGetId,
@@ -184,13 +213,7 @@ int _foodLogEstimateSize(
     }
   }
   {
-    final value = object.nutriaComment;
-    if (value != null) {
-      bytesCount += 3 + value.length * 3;
-    }
-  }
-  {
-    final value = object.supabaseId;
+    final value = object.notes;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -207,30 +230,33 @@ void _foodLogSerialize(
 ) {
   writer.writeDouble(offsets[0], object.calories);
   writer.writeDouble(offsets[1], object.carbs);
-  writer.writeDouble(offsets[2], object.fat);
-  writer.writeDouble(offsets[3], object.fiber);
-  writer.writeString(offsets[4], object.foodName);
-  writer.writeLong(offsets[5], object.healthScore);
+  writer.writeDouble(offsets[2], object.cholesterol);
+  writer.writeDouble(offsets[3], object.fat);
+  writer.writeDouble(offsets[4], object.fiber);
+  writer.writeString(offsets[5], object.foodName);
   writer.writeString(offsets[6], object.imagePath);
-  writer.writeBool(offsets[7], object.isSynced);
-  writer.writeLong(offsets[8], object.itemCount);
-  writer.writeString(offsets[9], object.mealType);
-  writer.writeDouble(offsets[10], object.modifierCalories);
-  writer.writeDouble(offsets[11], object.modifierCarbs);
-  writer.writeDouble(offsets[12], object.modifierFat);
-  writer.writeDouble(offsets[13], object.modifierProtein);
-  writer.writeStringList(offsets[14], object.modifiers);
-  writer.writeString(offsets[15], object.nutriaComment);
-  writer.writeDouble(offsets[16], object.portionSize);
-  writer.writeDouble(offsets[17], object.protein);
-  writer.writeString(offsets[18], object.supabaseId);
-  writer.writeDateTime(offsets[19], object.timestamp);
-  writer.writeDouble(offsets[20], object.totalCalories);
-  writer.writeDouble(offsets[21], object.totalCarbs);
-  writer.writeDouble(offsets[22], object.totalFat);
-  writer.writeDouble(offsets[23], object.totalFiber);
-  writer.writeDouble(offsets[24], object.totalProtein);
-  writer.writeString(offsets[25], object.userId);
+  writer.writeDouble(offsets[7], object.iron);
+  writer.writeBool(offsets[8], object.isSynced);
+  writer.writeDouble(offsets[9], object.itemCount);
+  writer.writeString(offsets[10], object.mealType);
+  writer.writeDouble(offsets[11], object.modifierCalories);
+  writer.writeDouble(offsets[12], object.modifierCarbs);
+  writer.writeDouble(offsets[13], object.modifierFat);
+  writer.writeDouble(offsets[14], object.modifierProtein);
+  writer.writeStringList(offsets[15], object.modifiers);
+  writer.writeString(offsets[16], object.notes);
+  writer.writeDouble(offsets[17], object.portionSize);
+  writer.writeDouble(offsets[18], object.potassium);
+  writer.writeDouble(offsets[19], object.protein);
+  writer.writeDouble(offsets[20], object.sodium);
+  writer.writeDouble(offsets[21], object.sugar);
+  writer.writeDateTime(offsets[22], object.timestamp);
+  writer.writeDouble(offsets[23], object.totalCalories);
+  writer.writeDouble(offsets[24], object.totalCarbs);
+  writer.writeDouble(offsets[25], object.totalFat);
+  writer.writeDouble(offsets[26], object.totalFiber);
+  writer.writeDouble(offsets[27], object.totalProtein);
+  writer.writeString(offsets[28], object.userId);
 }
 
 FoodLog _foodLogDeserialize(
@@ -242,31 +268,34 @@ FoodLog _foodLogDeserialize(
   final object = FoodLog();
   object.calories = reader.readDouble(offsets[0]);
   object.carbs = reader.readDouble(offsets[1]);
-  object.fat = reader.readDouble(offsets[2]);
-  object.fiber = reader.readDouble(offsets[3]);
-  object.foodName = reader.readString(offsets[4]);
-  object.healthScore = reader.readLong(offsets[5]);
+  object.cholesterol = reader.readDouble(offsets[2]);
+  object.fat = reader.readDouble(offsets[3]);
+  object.fiber = reader.readDouble(offsets[4]);
+  object.foodName = reader.readString(offsets[5]);
   object.id = id;
   object.imagePath = reader.readStringOrNull(offsets[6]);
-  object.isSynced = reader.readBool(offsets[7]);
-  object.itemCount = reader.readLong(offsets[8]);
-  object.mealType = reader.readString(offsets[9]);
-  object.modifierCalories = reader.readDouble(offsets[10]);
-  object.modifierCarbs = reader.readDouble(offsets[11]);
-  object.modifierFat = reader.readDouble(offsets[12]);
-  object.modifierProtein = reader.readDouble(offsets[13]);
-  object.modifiers = reader.readStringList(offsets[14]) ?? [];
-  object.nutriaComment = reader.readStringOrNull(offsets[15]);
-  object.portionSize = reader.readDouble(offsets[16]);
-  object.protein = reader.readDouble(offsets[17]);
-  object.supabaseId = reader.readStringOrNull(offsets[18]);
-  object.timestamp = reader.readDateTime(offsets[19]);
-  object.totalCalories = reader.readDouble(offsets[20]);
-  object.totalCarbs = reader.readDouble(offsets[21]);
-  object.totalFat = reader.readDouble(offsets[22]);
-  object.totalFiber = reader.readDouble(offsets[23]);
-  object.totalProtein = reader.readDouble(offsets[24]);
-  object.userId = reader.readString(offsets[25]);
+  object.iron = reader.readDouble(offsets[7]);
+  object.isSynced = reader.readBool(offsets[8]);
+  object.itemCount = reader.readDouble(offsets[9]);
+  object.mealType = reader.readString(offsets[10]);
+  object.modifierCalories = reader.readDouble(offsets[11]);
+  object.modifierCarbs = reader.readDouble(offsets[12]);
+  object.modifierFat = reader.readDouble(offsets[13]);
+  object.modifierProtein = reader.readDouble(offsets[14]);
+  object.modifiers = reader.readStringList(offsets[15]) ?? [];
+  object.notes = reader.readStringOrNull(offsets[16]);
+  object.portionSize = reader.readDouble(offsets[17]);
+  object.potassium = reader.readDouble(offsets[18]);
+  object.protein = reader.readDouble(offsets[19]);
+  object.sodium = reader.readDouble(offsets[20]);
+  object.sugar = reader.readDouble(offsets[21]);
+  object.timestamp = reader.readDateTime(offsets[22]);
+  object.totalCalories = reader.readDouble(offsets[23]);
+  object.totalCarbs = reader.readDouble(offsets[24]);
+  object.totalFat = reader.readDouble(offsets[25]);
+  object.totalFiber = reader.readDouble(offsets[26]);
+  object.totalProtein = reader.readDouble(offsets[27]);
+  object.userId = reader.readString(offsets[28]);
   return object;
 }
 
@@ -286,19 +315,19 @@ P _foodLogDeserializeProp<P>(
     case 3:
       return (reader.readDouble(offset)) as P;
     case 4:
-      return (reader.readString(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 6:
       return (reader.readStringOrNull(offset)) as P;
     case 7:
-      return (reader.readBool(offset)) as P;
-    case 8:
-      return (reader.readLong(offset)) as P;
-    case 9:
-      return (reader.readString(offset)) as P;
-    case 10:
       return (reader.readDouble(offset)) as P;
+    case 8:
+      return (reader.readBool(offset)) as P;
+    case 9:
+      return (reader.readDouble(offset)) as P;
+    case 10:
+      return (reader.readString(offset)) as P;
     case 11:
       return (reader.readDouble(offset)) as P;
     case 12:
@@ -306,28 +335,34 @@ P _foodLogDeserializeProp<P>(
     case 13:
       return (reader.readDouble(offset)) as P;
     case 14:
-      return (reader.readStringList(offset) ?? []) as P;
-    case 15:
-      return (reader.readStringOrNull(offset)) as P;
-    case 16:
       return (reader.readDouble(offset)) as P;
+    case 15:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 16:
+      return (reader.readStringOrNull(offset)) as P;
     case 17:
       return (reader.readDouble(offset)) as P;
     case 18:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 19:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 20:
       return (reader.readDouble(offset)) as P;
     case 21:
       return (reader.readDouble(offset)) as P;
     case 22:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 23:
       return (reader.readDouble(offset)) as P;
     case 24:
       return (reader.readDouble(offset)) as P;
     case 25:
+      return (reader.readDouble(offset)) as P;
+    case 26:
+      return (reader.readDouble(offset)) as P;
+    case 27:
+      return (reader.readDouble(offset)) as P;
+    case 28:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -417,6 +452,51 @@ extension FoodLogQueryWhere on QueryBuilder<FoodLog, FoodLog, QWhereClause> {
         upper: upperId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterWhereClause> userIdEqualTo(
+      String userId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'userId',
+        value: [userId],
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterWhereClause> userIdNotEqualTo(
+      String userId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'userId',
+              lower: [],
+              upper: [userId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'userId',
+              lower: [userId],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'userId',
+              lower: [userId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'userId',
+              lower: [],
+              upper: [userId],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }
@@ -538,6 +618,68 @@ extension FoodLogQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'carbs',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> cholesterolEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cholesterol',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> cholesterolGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'cholesterol',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> cholesterolLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'cholesterol',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> cholesterolBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'cholesterol',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -801,59 +943,6 @@ extension FoodLogQueryFilter
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> healthScoreEqualTo(
-      int value) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'healthScore',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> healthScoreGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'healthScore',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> healthScoreLessThan(
-    int value, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'healthScore',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> healthScoreBetween(
-    int lower,
-    int upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'healthScore',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
-    });
-  }
-
   QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1052,6 +1141,68 @@ extension FoodLogQueryFilter
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> ironEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'iron',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> ironGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'iron',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> ironLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'iron',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> ironBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'iron',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> isSyncedEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -1063,46 +1214,54 @@ extension FoodLogQueryFilter
   }
 
   QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> itemCountEqualTo(
-      int value) {
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'itemCount',
         value: value,
+        epsilon: epsilon,
       ));
     });
   }
 
   QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> itemCountGreaterThan(
-    int value, {
+    double value, {
     bool include = false,
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'itemCount',
         value: value,
+        epsilon: epsilon,
       ));
     });
   }
 
   QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> itemCountLessThan(
-    int value, {
+    double value, {
     bool include = false,
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'itemCount',
         value: value,
+        epsilon: epsilon,
       ));
     });
   }
 
   QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> itemCountBetween(
-    int lower,
-    int upper, {
+    double lower,
+    double upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -1111,6 +1270,7 @@ extension FoodLogQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+        epsilon: epsilon,
       ));
     });
   }
@@ -1717,38 +1877,36 @@ extension FoodLogQueryFilter
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentIsNull() {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'nutriaComment',
+        property: r'notes',
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition>
-      nutriaCommentIsNotNull() {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'nutriaComment',
+        property: r'notes',
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentEqualTo(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesEqualTo(
     String? value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'nutriaComment',
+        property: r'notes',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition>
-      nutriaCommentGreaterThan(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesGreaterThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -1756,14 +1914,14 @@ extension FoodLogQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
-        property: r'nutriaComment',
+        property: r'notes',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentLessThan(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesLessThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -1771,14 +1929,14 @@ extension FoodLogQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
-        property: r'nutriaComment',
+        property: r'notes',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentBetween(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -1787,7 +1945,7 @@ extension FoodLogQueryFilter
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
-        property: r'nutriaComment',
+        property: r'notes',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1797,70 +1955,69 @@ extension FoodLogQueryFilter
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentStartsWith(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'nutriaComment',
+        property: r'notes',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentEndsWith(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'nutriaComment',
+        property: r'notes',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentContains(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesContains(
       String value,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.contains(
-        property: r'nutriaComment',
+        property: r'notes',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentMatches(
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesMatches(
       String pattern,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.matches(
-        property: r'nutriaComment',
+        property: r'notes',
         wildcard: pattern,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> nutriaCommentIsEmpty() {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'nutriaComment',
+        property: r'notes',
         value: '',
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition>
-      nutriaCommentIsNotEmpty() {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> notesIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'nutriaComment',
+        property: r'notes',
         value: '',
       ));
     });
@@ -1919,6 +2076,68 @@ extension FoodLogQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'portionSize',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> potassiumEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'potassium',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> potassiumGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'potassium',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> potassiumLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'potassium',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> potassiumBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'potassium',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1990,148 +2209,126 @@ extension FoodLogQueryFilter
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdIsNull() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'supabaseId',
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdIsNotNull() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'supabaseId',
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdEqualTo(
-    String? value, {
-    bool caseSensitive = true,
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sodiumEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'supabaseId',
+        property: r'sodium',
         value: value,
-        caseSensitive: caseSensitive,
+        epsilon: epsilon,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdGreaterThan(
-    String? value, {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sodiumGreaterThan(
+    double value, {
     bool include = false,
-    bool caseSensitive = true,
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
-        property: r'supabaseId',
+        property: r'sodium',
         value: value,
-        caseSensitive: caseSensitive,
+        epsilon: epsilon,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdLessThan(
-    String? value, {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sodiumLessThan(
+    double value, {
     bool include = false,
-    bool caseSensitive = true,
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
-        property: r'supabaseId',
+        property: r'sodium',
         value: value,
-        caseSensitive: caseSensitive,
+        epsilon: epsilon,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdBetween(
-    String? lower,
-    String? upper, {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sodiumBetween(
+    double lower,
+    double upper, {
     bool includeLower = true,
     bool includeUpper = true,
-    bool caseSensitive = true,
+    double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
-        property: r'supabaseId',
+        property: r'sodium',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
+        epsilon: epsilon,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdStartsWith(
-    String value, {
-    bool caseSensitive = true,
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sugarEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
   }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'supabaseId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'supabaseId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdContains(
-      String value,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'supabaseId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'supabaseId',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'supabaseId',
-        value: '',
+        property: r'sugar',
+        value: value,
+        epsilon: epsilon,
       ));
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> supabaseIdIsNotEmpty() {
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sugarGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'supabaseId',
-        value: '',
+        include: include,
+        property: r'sugar',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sugarLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sugar',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterFilterCondition> sugarBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sugar',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
       ));
     });
   }
@@ -2662,6 +2859,18 @@ extension FoodLogQuerySortBy on QueryBuilder<FoodLog, FoodLog, QSortBy> {
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByCholesterol() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cholesterol', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByCholesterolDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cholesterol', Sort.desc);
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByFat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'fat', Sort.asc);
@@ -2698,18 +2907,6 @@ extension FoodLogQuerySortBy on QueryBuilder<FoodLog, FoodLog, QSortBy> {
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByHealthScore() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'healthScore', Sort.asc);
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByHealthScoreDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'healthScore', Sort.desc);
-    });
-  }
-
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByImagePath() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imagePath', Sort.asc);
@@ -2719,6 +2916,18 @@ extension FoodLogQuerySortBy on QueryBuilder<FoodLog, FoodLog, QSortBy> {
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByImagePathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imagePath', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByIron() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'iron', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByIronDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'iron', Sort.desc);
     });
   }
 
@@ -2806,15 +3015,15 @@ extension FoodLogQuerySortBy on QueryBuilder<FoodLog, FoodLog, QSortBy> {
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByNutriaComment() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByNotes() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'nutriaComment', Sort.asc);
+      return query.addSortBy(r'notes', Sort.asc);
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByNutriaCommentDesc() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByNotesDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'nutriaComment', Sort.desc);
+      return query.addSortBy(r'notes', Sort.desc);
     });
   }
 
@@ -2830,6 +3039,18 @@ extension FoodLogQuerySortBy on QueryBuilder<FoodLog, FoodLog, QSortBy> {
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByPotassium() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'potassium', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByPotassiumDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'potassium', Sort.desc);
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortByProtein() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'protein', Sort.asc);
@@ -2842,15 +3063,27 @@ extension FoodLogQuerySortBy on QueryBuilder<FoodLog, FoodLog, QSortBy> {
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortBySupabaseId() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortBySodium() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'supabaseId', Sort.asc);
+      return query.addSortBy(r'sodium', Sort.asc);
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortBySupabaseIdDesc() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortBySodiumDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'supabaseId', Sort.desc);
+      return query.addSortBy(r'sodium', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortBySugar() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sugar', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> sortBySugarDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sugar', Sort.desc);
     });
   }
 
@@ -2965,6 +3198,18 @@ extension FoodLogQuerySortThenBy
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByCholesterol() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cholesterol', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByCholesterolDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cholesterol', Sort.desc);
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByFat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'fat', Sort.asc);
@@ -3001,18 +3246,6 @@ extension FoodLogQuerySortThenBy
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByHealthScore() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'healthScore', Sort.asc);
-    });
-  }
-
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByHealthScoreDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'healthScore', Sort.desc);
-    });
-  }
-
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -3034,6 +3267,18 @@ extension FoodLogQuerySortThenBy
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByImagePathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imagePath', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByIron() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'iron', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByIronDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'iron', Sort.desc);
     });
   }
 
@@ -3121,15 +3366,15 @@ extension FoodLogQuerySortThenBy
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByNutriaComment() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByNotes() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'nutriaComment', Sort.asc);
+      return query.addSortBy(r'notes', Sort.asc);
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByNutriaCommentDesc() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByNotesDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'nutriaComment', Sort.desc);
+      return query.addSortBy(r'notes', Sort.desc);
     });
   }
 
@@ -3145,6 +3390,18 @@ extension FoodLogQuerySortThenBy
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByPotassium() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'potassium', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByPotassiumDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'potassium', Sort.desc);
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenByProtein() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'protein', Sort.asc);
@@ -3157,15 +3414,27 @@ extension FoodLogQuerySortThenBy
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenBySupabaseId() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenBySodium() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'supabaseId', Sort.asc);
+      return query.addSortBy(r'sodium', Sort.asc);
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenBySupabaseIdDesc() {
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenBySodiumDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'supabaseId', Sort.desc);
+      return query.addSortBy(r'sodium', Sort.desc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenBySugar() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sugar', Sort.asc);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QAfterSortBy> thenBySugarDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sugar', Sort.desc);
     });
   }
 
@@ -3268,6 +3537,12 @@ extension FoodLogQueryWhereDistinct
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByCholesterol() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'cholesterol');
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByFat() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'fat');
@@ -3287,16 +3562,16 @@ extension FoodLogQueryWhereDistinct
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByHealthScore() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'healthScore');
-    });
-  }
-
   QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByImagePath(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'imagePath', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByIron() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'iron');
     });
   }
 
@@ -3349,11 +3624,10 @@ extension FoodLogQueryWhereDistinct
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByNutriaComment(
+  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByNotes(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'nutriaComment',
-          caseSensitive: caseSensitive);
+      return query.addDistinctBy(r'notes', caseSensitive: caseSensitive);
     });
   }
 
@@ -3363,16 +3637,27 @@ extension FoodLogQueryWhereDistinct
     });
   }
 
+  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByPotassium() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'potassium');
+    });
+  }
+
   QueryBuilder<FoodLog, FoodLog, QDistinct> distinctByProtein() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'protein');
     });
   }
 
-  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctBySupabaseId(
-      {bool caseSensitive = true}) {
+  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctBySodium() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'supabaseId', caseSensitive: caseSensitive);
+      return query.addDistinctBy(r'sodium');
+    });
+  }
+
+  QueryBuilder<FoodLog, FoodLog, QDistinct> distinctBySugar() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sugar');
     });
   }
 
@@ -3440,6 +3725,12 @@ extension FoodLogQueryProperty
     });
   }
 
+  QueryBuilder<FoodLog, double, QQueryOperations> cholesterolProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'cholesterol');
+    });
+  }
+
   QueryBuilder<FoodLog, double, QQueryOperations> fatProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'fat');
@@ -3458,15 +3749,15 @@ extension FoodLogQueryProperty
     });
   }
 
-  QueryBuilder<FoodLog, int, QQueryOperations> healthScoreProperty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'healthScore');
-    });
-  }
-
   QueryBuilder<FoodLog, String?, QQueryOperations> imagePathProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'imagePath');
+    });
+  }
+
+  QueryBuilder<FoodLog, double, QQueryOperations> ironProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'iron');
     });
   }
 
@@ -3476,7 +3767,7 @@ extension FoodLogQueryProperty
     });
   }
 
-  QueryBuilder<FoodLog, int, QQueryOperations> itemCountProperty() {
+  QueryBuilder<FoodLog, double, QQueryOperations> itemCountProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'itemCount');
     });
@@ -3518,9 +3809,9 @@ extension FoodLogQueryProperty
     });
   }
 
-  QueryBuilder<FoodLog, String?, QQueryOperations> nutriaCommentProperty() {
+  QueryBuilder<FoodLog, String?, QQueryOperations> notesProperty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'nutriaComment');
+      return query.addPropertyName(r'notes');
     });
   }
 
@@ -3530,15 +3821,27 @@ extension FoodLogQueryProperty
     });
   }
 
+  QueryBuilder<FoodLog, double, QQueryOperations> potassiumProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'potassium');
+    });
+  }
+
   QueryBuilder<FoodLog, double, QQueryOperations> proteinProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'protein');
     });
   }
 
-  QueryBuilder<FoodLog, String?, QQueryOperations> supabaseIdProperty() {
+  QueryBuilder<FoodLog, double, QQueryOperations> sodiumProperty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'supabaseId');
+      return query.addPropertyName(r'sodium');
+    });
+  }
+
+  QueryBuilder<FoodLog, double, QQueryOperations> sugarProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sugar');
     });
   }
 

@@ -1,5 +1,3 @@
-// lib/services/ai_food_service.dart - REPLACE ENTIRE FILE
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -19,19 +17,33 @@ class AiFoodService {
       print("DEBUG: 📸 Image converted to Base64 (${bytes.lengthInBytes} bytes)");
 
       final requestBody = jsonEncode({
-        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        // ✅ KEEPING YOUR MODEL to prevent API errors
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct", 
+        
         "messages": [
           {
             "role": "user",
             "content": [
               {
                 "type": "text", 
+                // ✅ UPDATED PROMPT: Added Micronutrients for Medical Report
                 "text": "Identify the food in this image. "
                         "Return a JSON object with keys: "
                         "1. 'is_food' (boolean): true if edible food. "
-                        "2. 'items' (list): Detected foods with 'name', 'calories', 'protein', 'carbs', 'fat'. "
+                        "2. 'items' (list): Detected foods with: "
+                        "   - 'name' (string) "
+                        "   - 'calories' (number) "
+                        "   - 'protein' (g, number) "
+                        "   - 'carbs' (g, number) "
+                        "   - 'fat' (g, number) "
+                        "   - 'fiber' (g, number) "
+                        "   - 'sugar' (g, number) "       // <-- Added
+                        "   - 'sodium' (mg, number) "     // <-- Added
+                        "   - 'cholesterol' (mg, number) "// <-- Added
+                        "   - 'iron' (mg, number) "       // <-- Added
+                        "   - 'potassium' (mg, number) "  // <-- Added
                         "3. 'reason' (string): If not food, explain why. "
-                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Roti\", \"calories\": 100, \"protein\": 3, \"carbs\": 18, \"fat\": 2}]}"
+                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Roti\", \"calories\": 100, \"protein\": 3, \"carbs\": 18, \"fat\": 2, \"sugar\": 1, \"sodium\": 5, \"cholesterol\": 0, \"iron\": 1, \"potassium\": 50}]}"
               },
               {
                 "type": "image_url",
@@ -59,7 +71,7 @@ class AiFoodService {
       ).timeout(const Duration(seconds: 30));
 
       print("DEBUG: 📥 Response Code: ${response.statusCode}");
-      print("DEBUG: 📄 Raw Body: ${response.body}");
+      // print("DEBUG: 📄 Raw Body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

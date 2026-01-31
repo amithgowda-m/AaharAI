@@ -1,5 +1,3 @@
-// lib/features/scanner/presentation/food_result_sheet.dart - REPLACE ENTIRE FILE
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/local/isar_service.dart';
@@ -263,13 +261,33 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
         ..userId = currentUser.id
         ..foodName = currentItem['name']
         ..mealType = selectedMealType
-        ..calories = currentItem['calories'].toDouble()
-        ..protein = currentItem['protein'].toDouble()
+        
+        // --- 1. MACROS (With Safe Defaults) ---
+        ..calories = (currentItem['calories'] ?? 0).toDouble()
+        ..protein = (currentItem['protein'] ?? 0).toDouble()
         ..carbs = (currentItem['carbs'] ?? 0).toDouble()
         ..fat = (currentItem['fat'] ?? 0).toDouble()
         ..fiber = (currentItem['fiber'] ?? 0).toDouble()
+        
+        // --- 2. MICRONUTRIENTS (Professional Data) ---
+        ..sugar = (currentItem['sugar'] ?? 0).toDouble()
+        ..sodium = (currentItem['sodium'] ?? 0).toDouble()
+        ..cholesterol = (currentItem['cholesterol'] ?? 0).toDouble()
+        ..iron = (currentItem['iron'] ?? 0).toDouble()
+        ..potassium = (currentItem['potassium'] ?? 0).toDouble()
+
+        // --- 3. QUANTITY ---
         ..portionSize = portionMultiplier
-        ..itemCount = itemCount
+        ..itemCount = itemCount.toDouble()
+
+        // --- 4. CALCULATED TOTALS (Base * Qty + Modifiers) ---
+        ..totalCalories = _getTotalCalories()
+        ..totalProtein = _getTotalProtein()
+        ..totalCarbs = _getTotalCarbs()
+        ..totalFat = _getTotalFat()
+        ..totalFiber = _getAdjustedValue(currentItem['fiber'])
+
+        // --- 5. MODIFIERS & METADATA ---
         ..modifiers = modifiers.map((m) => m.name).toList()
         ..modifierCalories = modCalories
         ..modifierProtein = modProtein

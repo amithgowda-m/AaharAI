@@ -1,5 +1,3 @@
-// lib/data/local/entities/food_log.dart - REPLACE ENTIRE FILE
-
 import 'package:isar/isar.dart';
 
 part 'food_log.g.dart';
@@ -8,48 +6,50 @@ part 'food_log.g.dart';
 class FoodLog {
   Id id = Isar.autoIncrement;
 
-  late String userId; // Link to user
-  
-  // Food Details
+  @Index()
+  late String userId;
   late String foodName;
-  late String mealType; // 'Breakfast', 'Morning Snack', 'Lunch', 'Evening Snack', 'Dinner', 'Late Night Snack'
-  
-  // Nutrition (base values)
-  late double calories;
-  late double protein;
-  late double carbs;
-  late double fat;
+
+  // --- BASE VALUES (Per Serving) ---
+  // These were missing and causing your errors
+  double calories = 0.0; 
+  double protein = 0.0;
+  double carbs = 0.0;
+  double fat = 0.0;
   double fiber = 0.0;
-  
-  // Portion & Quantity
-  double portionSize = 1.0; // 0.5x, 1x, 1.5x, 2x, etc.
-  int itemCount = 1; // Number of items
-  
-  // Modifiers (toppings, additions)
-  List<String> modifiers = []; // e.g., ['1 tsp ghee', 'extra cheese', 'no oil']
-  
-  // Modifier Nutrition (added separately)
+
+  // --- QUANTITY ---
+  double portionSize = 1.0;
+  double itemCount = 1.0;
+
+  // --- MODIFIERS (e.g. "Extra Cheese") ---
   double modifierCalories = 0.0;
   double modifierProtein = 0.0;
   double modifierCarbs = 0.0;
   double modifierFat = 0.0;
+
+  // --- CALCULATED TOTALS (Base * Qty + Modifiers) ---
+  // These are used for your Dashboard & History
+  double totalCalories = 0.0;
+  double totalProtein = 0.0;
+  double totalCarbs = 0.0;
+  double totalFat = 0.0;
+  double totalFiber = 0.0;
+
+  // --- MICRONUTRIENTS (Professional Data) ---
+  double sugar = 0.0;       // Crucial for Diabetics
+  double sodium = 0.0;      // Crucial for Hypertension
+  double cholesterol = 0.0; // Crucial for Heart Health
+  double iron = 0.0;        // Crucial for Anemia (Females)
+  double potassium = 0.0;   // General Health
+
+  // --- METADATA ---
+  late DateTime timestamp;
+  late String mealType;
   
-  // Total Nutrition (base + modifiers + portion * count)
-  late double totalCalories;
-  late double totalProtein;
-  late double totalCarbs;
-  late double totalFat;
-  late double totalFiber;
+  List<String> modifiers = [];
+  String? notes;
   
-  // Image & Metadata
-  String? imagePath; // Local path to food image
-  DateTime timestamp = DateTime.now();
-  
-  // AI Insights
-  String? nutriaComment; // AI feedback on this meal
-  int healthScore = 0; // 1-10 rating from AI
-  
-  // Synced to cloud
-  bool isSynced = false;
-  String? supabaseId; // ID in Supabase table
+  String? imagePath;    // Was missing, causing Scanner error
+  bool isSynced = false; // Was missing, causing IsarService error
 }

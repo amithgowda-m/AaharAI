@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:isar/isar.dart'; // REQUIRED for .watch()
+import 'package:isar/isar.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Services & Entities
 import 'package:aahar_ai/data/local/isar_service.dart';
 import 'package:aahar_ai/data/local/entities/food_log.dart';
-import 'package:aahar_ai/data/local/entities/user_profile.dart'; // To get the name
-import 'package:aahar_ai/services/pdf_service.dart'; // To generate the PDF
+import 'package:aahar_ai/data/local/entities/user_profile.dart'; 
+import 'package:aahar_ai/services/pdf_service.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -17,7 +17,6 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get the IsarService
     final isarService = context.read<IsarService>();
 
     return Scaffold(
@@ -31,21 +30,20 @@ class HistoryScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         
-        // --- PDF EXPORT BUTTON ---
+        // --- PROFESSIONAL PDF EXPORT BUTTON ---
         actions: [
           FutureBuilder<Isar>(
             future: isarService.db,
             builder: (context, snapshot) {
-              // Wait for DB to be ready
               if (!snapshot.hasData) return const SizedBox.shrink();
               
               return IconButton(
                 icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF2E7D32)),
-                tooltip: 'Export Professional Report',
+                tooltip: 'Export Medical Report',
                 onPressed: () async {
                   final isar = snapshot.data!;
                   
-                  // A. Fetch all logs for this user (Snapshot, not stream)
+                  // 1. Fetch Logs
                   final logs = await isar.foodLogs
                       .filter()
                       .userIdEqualTo(_userId)
@@ -59,25 +57,35 @@ class HistoryScreen extends StatelessWidget {
                     return;
                   }
 
-                  // B. Fetch Real User Name
-                  String userName = "Aahar User"; 
-                  final profile = await isar.userProfiles.where().findFirst();
-                  if (profile != null && profile.name.isNotEmpty) {
-                    userName = profile.name;
-                  }
+                  // 2. Fetch Latest Profile
+                  final profile = await isar.userProfiles
+                      .filter()
+                      .userIdEqualTo(_userId)
+                      .findFirst();
 
-                  // C. Generate PDF
-                  await PdfService.generateAndPrintLog(logs, userName);
+                  if (profile != null) {
+                    // DEBUG: Check console to confirm correct data is fetched
+                    print("--- PDF REPORT DATA ---");
+                    print("User: ${profile.name}");
+                    print("Conditions: ${profile.healthConditions}");
+                    print("BMI: ${profile.bmi}");
+                    print("-----------------------");
+
+                    // 3. Generate Report
+                    await PdfService.generateProfessionalReport(logs, profile);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Please complete your profile first.")),
+                    );
+                  }
                 },
               );
             },
           ),
           const SizedBox(width: 8),
         ],
-        // -------------------------
       ),
       body: FutureBuilder<Isar>(
-        // 2. Wait for DB to initialize
         future: isarService.db,
         builder: (context, dbSnapshot) {
           if (!dbSnapshot.hasData) {
@@ -86,7 +94,6 @@ class HistoryScreen extends StatelessWidget {
 
           final isar = dbSnapshot.data!;
 
-          // 3. WATCH the database for changes (Real-time updates)
           return StreamBuilder<List<FoodLog>>(
             stream: isar.foodLogs
                 .filter()
@@ -104,7 +111,6 @@ class HistoryScreen extends StatelessWidget {
                 return _emptyState();
               }
 
-              // 4. Group logic by Date
               final grouped = _groupByDate(logs);
               final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
@@ -119,11 +125,7 @@ class HistoryScreen extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final date = dates[index];
                         final dayLogs = grouped[date]!;
-
-                        return _DaySection(
-                          date: date,
-                          logs: dayLogs,
-                        );
+                        return _DaySection(date: date, logs: dayLogs);
                       },
                     ),
                   ),
@@ -136,8 +138,7 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  // ---------- HELPERS ----------
-
+  // ... (Keep existing _groupByDate, _emptyState, and _DaySection exactly as they are) ...
   Map<DateTime, List<FoodLog>> _groupByDate(List<FoodLog> logs) {
     final Map<DateTime, List<FoodLog>> map = {};
     for (final log in logs) {
@@ -152,24 +153,11 @@ class HistoryScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.history_rounded,
-            size: 80,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.history_rounded, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
             "No meals logged yet",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Your food logs will appear here",
-            style: TextStyle(color: Colors.grey[400]),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -200,7 +188,6 @@ class _DaySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ---------- DATE HEADER ----------
         Padding(
           padding: const EdgeInsets.only(bottom: 12, top: 8),
           child: Row(
@@ -208,11 +195,7 @@ class _DaySection extends StatelessWidget {
             children: [
               Text(
                 dateString,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2E7D32),
-                ),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -222,18 +205,12 @@ class _DaySection extends StatelessWidget {
                 ),
                 child: Text(
                   "${totalCalories.toInt()} kcal • ${totalProtein.toStringAsFixed(1)}g P",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2E7D32),
-                  ),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
                 ),
               ),
             ],
           ),
         ),
-
-        // ---------- MEALS LIST ----------
         Card(
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -252,50 +229,17 @@ class _DaySection extends StatelessWidget {
                 leading: Container(
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      _getMealEmoji(log.mealType),
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                  ),
+                  decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(12)),
+                  child: Center(child: Text(_getMealEmoji(log.mealType), style: const TextStyle(fontSize: 24))),
                 ),
-                title: Text(
-                  log.foodName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-                subtitle: Text(
-                  "${log.mealType} • ${DateFormat('hh:mm a').format(log.timestamp)}",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
+                title: Text(log.foodName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                subtitle: Text("${log.mealType} • ${DateFormat('hh:mm a').format(log.timestamp)}", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      "${log.totalCalories.toInt()} kcal",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      "${log.totalProtein.toStringAsFixed(1)}g protein",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                      ),
-                    ),
+                    Text("${log.totalCalories.toInt()} kcal", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                    Text("${log.totalProtein.toStringAsFixed(1)}g protein", style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                   ],
                 ),
               );

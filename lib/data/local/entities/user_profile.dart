@@ -58,4 +58,19 @@ class UserProfile {
   
   // Legacy field (keep for compatibility)
   int? dailyCalorieTarget;
+  // Add this inside your UserProfile class
+  double get bmi {
+    if (height <= 0) return 0;
+    // BMI Formula: Weight (kg) / Height (m)²
+    double heightInMeters = height / 100;
+    return currentWeight / (heightInMeters * heightInMeters);
+  }
+
+  String get bmiCategory {
+    double val = bmi;
+    if (val < 18.5) return "Underweight";
+    if (val < 24.9) return "Normal";
+    if (val < 29.9) return "Overweight";
+    return "Obese";
+  }
 }

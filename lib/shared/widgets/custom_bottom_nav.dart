@@ -1,4 +1,5 @@
-// lib/shared/widgets/custom_bottom_nav.dart
+// lib/shared/widgets/custom_bottom_nav.dart - REPLACE ENTIRE FILE
+
 import 'package:flutter/material.dart';
 
 class CustomBottomNav extends StatelessWidget {
@@ -17,9 +18,12 @@ class CustomBottomNav extends StatelessWidget {
       currentIndex: currentIndex,
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: Color(0xFF2E7D32),
+      backgroundColor: const Color(0xFF1A1A1A),
+      selectedItemColor: const Color(0xFF2E7D32),
       unselectedItemColor: Colors.grey,
-      items: [
+      selectedFontSize: 12,
+      unselectedFontSize: 10,
+      items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
           activeIcon: Icon(Icons.home),
@@ -31,9 +35,9 @@ class CustomBottomNav extends StatelessWidget {
           label: 'Snap',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Plans',
+          icon: Icon(Icons.auto_awesome_outlined), // NEW - Smart Plans
+          activeIcon: Icon(Icons.auto_awesome),
+          label: 'Smart',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.local_fire_department_outlined),
@@ -43,7 +47,7 @@ class CustomBottomNav extends StatelessWidget {
         BottomNavigationBarItem(
           icon: Icon(Icons.chat_bubble_outline),
           activeIcon: Icon(Icons.chat_bubble),
-          label: 'Nutira',
+          label: 'Nutria',
         ),
       ],
     );

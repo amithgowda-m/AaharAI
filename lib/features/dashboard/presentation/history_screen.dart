@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart';
+import 'package:isar/isar.dart'; // REQUIRED for .watch()
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../data/local/isar_service.dart';
-import '../../../data/local/entities/food_log.dart';
-import '../../../services/auth_service.dart';
+// Ensure these paths match your project structure
+import 'package:aahar_ai/data/local/isar_service.dart';
+import 'package:aahar_ai/data/local/entities/food_log.dart';
 
-// ---------------- PROVIDERS ----------------
+class HistoryScreen extends StatelessWidget {
+  const HistoryScreen({Key? key}) : super(key: key);
 
-final historyLogsProvider =
-    FutureProvider.autoDispose<List<FoodLog>>((ref) async {
-  final service = ref.read(isarProvider);
-  final userId = AuthService.getCurrentUser()?.id ?? '';
-  return service.getAllLogs(userId);
-});
-
-// ---------------- SCREEN ----------------
-
-class HistoryScreen extends ConsumerWidget {
-  const HistoryScreen({super.key});
+  String get _userId => Supabase.instance.client.auth.currentUser?.id ?? 'local_user';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logsAsync = ref.watch(historyLogsProvider);
+  Widget build(BuildContext context) {
+    // 1. Get the IsarService
+    final isarService = context.read<IsarService>();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -35,42 +29,62 @@ class HistoryScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: false,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Divider(height: 1),
-          Expanded(
-            child: logsAsync.when(
-              data: (logs) {
-                if (logs.isEmpty) {
-                  return _emptyState();
-                }
+      body: FutureBuilder<Isar>(
+        // 2. Wait for DB to initialize
+        future: isarService.db,
+        builder: (context, dbSnapshot) {
+          if (!dbSnapshot.hasData) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
+          }
 
-                final grouped = _groupByDate(logs);
-                final dates = grouped.keys.toList()
-                  ..sort((a, b) => b.compareTo(a));
+          final isar = dbSnapshot.data!;
 
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                  itemCount: dates.length,
-                  itemBuilder: (context, index) {
-                    final date = dates[index];
-                    final dayLogs = grouped[date]!;
+          // 3. WATCH the database for changes (This makes it dynamic)
+          return StreamBuilder<List<FoodLog>>(
+            stream: isar.foodLogs
+                .filter()
+                .userIdEqualTo(_userId)
+                .sortByTimestampDesc()
+                .watch(fireImmediately: true), // <--- Vital for real-time updates
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
+              }
 
-                    return _DaySection(
-                      date: date,
-                      logs: dayLogs,
-                    );
-                  },
-                );
-              },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
-              error: (err, stack) =>
-                  Center(child: Text("Failed to load history: $err")),
-            ),
-          ),
-        ],
+              final logs = snapshot.data ?? [];
+
+              if (logs.isEmpty) {
+                return _emptyState();
+              }
+
+              // 4. Group logic (Same as your previous code)
+              final grouped = _groupByDate(logs);
+              final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      itemCount: dates.length,
+                      itemBuilder: (context, index) {
+                        final date = dates[index];
+                        final dayLogs = grouped[date]!;
+
+                        return _DaySection(
+                          date: date,
+                          logs: dayLogs,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -80,8 +94,7 @@ class HistoryScreen extends ConsumerWidget {
   Map<DateTime, List<FoodLog>> _groupByDate(List<FoodLog> logs) {
     final Map<DateTime, List<FoodLog>> map = {};
     for (final log in logs) {
-      final day =
-          DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day);
+      final day = DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day);
       map.putIfAbsent(day, () => []).add(log);
     }
     return map;
@@ -117,7 +130,7 @@ class HistoryScreen extends ConsumerWidget {
   }
 }
 
-// ---------------- DAY SECTION ----------------
+// ---------------- DAY SECTION WIDGET ----------------
 
 class _DaySection extends StatelessWidget {
   final DateTime date;
@@ -130,10 +143,8 @@ class _DaySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalCalories =
-        logs.fold<double>(0, (s, e) => s + e.totalCalories);
-    final totalProtein =
-        logs.fold<double>(0, (s, e) => s + e.totalProtein);
+    final totalCalories = logs.fold<double>(0, (s, e) => s + e.totalCalories);
+    final totalProtein = logs.fold<double>(0, (s, e) => s + e.totalProtein);
 
     final isToday = DateUtils.isSameDay(date, DateTime.now());
     final dateString = isToday ? "Today" : DateFormat('EEEE, MMM dd').format(date);
@@ -174,7 +185,7 @@ class _DaySection extends StatelessWidget {
           ),
         ),
 
-        // ---------- MEALS ----------
+        // ---------- MEALS LIST ----------
         Card(
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -262,5 +273,3 @@ class _DaySection extends StatelessWidget {
     }
   }
 }
-
-

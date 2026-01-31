@@ -1,14 +1,17 @@
+// lib/features/nutria_chat/presentation/chat_screen.dart
+
 import 'package:flutter/material.dart';
 import '../../../services/nutria_service.dart';
 
-class NutiraChatScreen extends StatefulWidget {
-  const NutiraChatScreen({super.key});
+// RENAMED CLASS: NutiraChatScreen -> ChatScreen
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key});
 
   @override
-  _NutiraChatScreenState createState() => _NutiraChatScreenState();
+  _ChatScreenState createState() => _ChatScreenState();
 }
 
-class _NutiraChatScreenState extends State<NutiraChatScreen> {
+class _ChatScreenState extends State<ChatScreen> {
   final List<ChatMessage> messages = [];
   final TextEditingController _controller = TextEditingController();
   final NutriaService _nutriaService = NutriaService();
@@ -196,4 +199,3 @@ class ChatBubble extends StatelessWidget {
     );
   }
 }
-

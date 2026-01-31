@@ -45,6 +45,8 @@ class UserProfile {
   double? weeklyBudget;
   List<String> dietaryRestrictions = [];
   List<String> foodAllergies = [];
+  // NEW: Added this field to match your RecommendationProvider logic
+  List<String> dietaryPreferences = []; 
   
   // Timestamps
   DateTime? createdAt;

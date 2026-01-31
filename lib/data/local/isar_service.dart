@@ -1,18 +1,26 @@
-// lib/data/local/isar_service.dart - REPLACE ENTIRE FILE
+// lib/data/local/isar_service.dart
 
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'entities/food_log.dart';
-import 'entities/user_profile.dart';
 
-// Provider for Isar Service
+import 'package:aahar_ai/data/local/entities/food_log.dart';
+import 'package:aahar_ai/data/local/entities/user_profile.dart';
+import 'package:aahar_ai/data/local/entities/meal_recommendation.dart';
+import 'package:aahar_ai/data/local/entities/diet_plan.dart';
+import 'package:aahar_ai/data/local/entities/user_subscription.dart';
+
 final isarProvider = Provider<IsarService>((ref) {
   return IsarService();
 });
 
 class IsarService {
   late Future<Isar> db;
+
+  static const int freeDailyScanLimit = 5;
+  static const int freeDailyChatLimit = 10;
+  static const int unlimitedLimit = 999999;
+  static const double standardFiberGoal = 30.0;
 
   IsarService() {
     db = openDB();
@@ -22,7 +30,13 @@ class IsarService {
     if (Isar.instanceNames.isEmpty) {
       final dir = await getApplicationDocumentsDirectory();
       return await Isar.open(
-        [FoodLogSchema, UserProfileSchema],
+        [
+          FoodLogSchema,
+          UserProfileSchema,
+          MealRecommendationSchema,
+          DietPlanSchema,
+          UserSubscriptionSchema,
+        ],
         directory: dir.path,
         inspector: true,
       );
@@ -35,7 +49,6 @@ class IsarService {
   Future<void> addFoodLog(FoodLog newLog) async {
     final isar = await db;
     
-    // Calculate total nutrition
     final baseCalories = newLog.calories * newLog.portionSize * newLog.itemCount;
     final baseProtein = newLog.protein * newLog.portionSize * newLog.itemCount;
     final baseCarbs = newLog.carbs * newLog.portionSize * newLog.itemCount;
@@ -52,7 +65,6 @@ class IsarService {
       await isar.foodLogs.put(newLog);
     });
     
-    // Update user streak
     await _updateStreak(newLog.userId);
   }
 
@@ -113,7 +125,6 @@ class IsarService {
     });
   }
 
-  // Get today's nutrition totals
   Future<Map<String, double>> getTodayNutrition(String userId) async {
     final logs = await getTodayLogs(userId);
     
@@ -140,7 +151,6 @@ class IsarService {
     };
   }
 
-  // Get unsynced logs (for Supabase sync)
   Future<List<FoodLog>> getUnsyncedLogs(String userId) async {
     final isar = await db;
     return await isar.foodLogs
@@ -150,7 +160,6 @@ class IsarService {
         .findAll();
   }
 
-  // Mark logs as synced
   Future<void> markLogsSynced(List<int> logIds) async {
     final isar = await db;
     await isar.writeTxn(() async {
@@ -164,6 +173,263 @@ class IsarService {
     });
   }
 
+  // ==================== MEAL PATTERN ANALYSIS ====================
+
+  Future<List<FoodLog>> getMealsBetweenDates(DateTime startDate, DateTime endDate) async {
+    final isar = await db;
+    return await isar.foodLogs
+        .filter()
+        .timestampBetween(startDate, endDate)
+        .sortByTimestampDesc()
+        .findAll();
+  }
+
+  Future<List<FoodLog>> getRecentMeals(int days) async {
+    final isar = await db;
+    final startDate = DateTime.now().subtract(Duration(days: days));
+    return await isar.foodLogs
+        .filter()
+        .timestampGreaterThan(startDate)
+        .sortByTimestampDesc()
+        .findAll();
+  }
+
+  // ==================== RECOMMENDATIONS ====================
+  
+  Future<void> saveRecommendation(MealRecommendation recommendation) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.mealRecommendations.put(recommendation);
+    });
+  }
+
+  Future<void> saveRecommendations(List<MealRecommendation> recommendations) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.mealRecommendations.putAll(recommendations);
+    });
+  }
+
+  Future<List<MealRecommendation>> getValidRecommendations(String mealType) async {
+    final isar = await db;
+    final now = DateTime.now();
+    return await isar.mealRecommendations
+        .filter()
+        .mealTypeEqualTo(mealType)
+        .validUntilGreaterThan(now)
+        .sortByCreatedAtDesc()
+        .findAll();
+  }
+
+  Future<List<MealRecommendation>> getAllRecommendations() async {
+    final isar = await db;
+    return await isar.mealRecommendations
+        .where()
+        .sortByCreatedAtDesc()
+        .findAll();
+  }
+
+  Future<void> markRecommendationAsUsed(int recommendationId) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      final rec = await isar.mealRecommendations.get(recommendationId);
+      if (rec != null) {
+        rec.isUsed = true;
+        await isar.mealRecommendations.put(rec);
+      }
+    });
+  }
+
+  Future<void> clearExpiredRecommendations() async {
+    final isar = await db;
+    final now = DateTime.now();
+    await isar.writeTxn(() async {
+      final expired = await isar.mealRecommendations
+          .filter()
+          .validUntilLessThan(now)
+          .findAll();
+      await isar.mealRecommendations.deleteAll(expired.map((e) => e.id).toList());
+    });
+  }
+
+  Future<void> clearAllRecommendations() async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.mealRecommendations.clear();
+    });
+  }
+
+  // ==================== DIET PLANS ====================
+  
+  Future<void> saveDietPlan(DietPlan plan) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      final existingPlans = await isar.dietPlans.where().findAll();
+      for (var p in existingPlans) {
+        p.isActive = false;
+        await isar.dietPlans.put(p);
+      }
+      await isar.dietPlans.put(plan);
+    });
+  }
+
+  Future<DietPlan?> getActiveDietPlan() async {
+    final isar = await db;
+    return await isar.dietPlans
+        .filter()
+        .isActiveEqualTo(true)
+        .findFirst();
+  }
+
+  Future<List<DietPlan>> getAllDietPlans() async {
+    final isar = await db;
+    return await isar.dietPlans
+        .where()
+        .sortByCreatedAtDesc()
+        .findAll();
+  }
+
+  Future<void> deactivateDietPlan(int planId) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      final plan = await isar.dietPlans.get(planId);
+      if (plan != null) {
+        plan.isActive = false;
+        await isar.dietPlans.put(plan);
+      }
+    });
+  }
+
+  Future<void> deleteDietPlan(int planId) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.dietPlans.delete(planId);
+    });
+  }
+
+  // ==================== SUBSCRIPTION ====================
+  
+  Future<void> saveSubscription(UserSubscription subscription) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.userSubscriptions.put(subscription);
+    });
+  }
+
+  Future<UserSubscription?> getSubscription() async {
+    final isar = await db;
+    return await isar.userSubscriptions.where().findFirst();
+  }
+
+  Future<void> incrementDailyScanCount() async {
+    final isar = await db;
+    final sub = await getSubscription();
+    
+    if (sub != null) {
+      await isar.writeTxn(() async {
+        _resetCountsIfNeeded(sub);
+        sub.dailyScanCount++;
+        sub.updatedAt = DateTime.now();
+        await isar.userSubscriptions.put(sub);
+      });
+    }
+  }
+
+  Future<void> incrementDailyChatCount() async {
+    final isar = await db;
+    final sub = await getSubscription();
+    
+    if (sub != null) {
+      await isar.writeTxn(() async {
+        _resetCountsIfNeeded(sub);
+        sub.dailyChatCount++;
+        sub.updatedAt = DateTime.now();
+        await isar.userSubscriptions.put(sub);
+      });
+    }
+  }
+
+  void _resetCountsIfNeeded(UserSubscription sub) {
+    final now = DateTime.now();
+    if (sub.lastResetDate.day != now.day || 
+        sub.lastResetDate.month != now.month || 
+        sub.lastResetDate.year != now.year) {
+      sub.dailyScanCount = 0;
+      sub.dailyChatCount = 0;
+      sub.lastResetDate = now;
+    }
+  }
+
+  Future<bool> canScanToday() async {
+    final sub = await getSubscription();
+    if (sub == null) return false;
+    
+    final now = DateTime.now();
+    if (sub.lastResetDate.day != now.day || 
+        sub.lastResetDate.month != now.month || 
+        sub.lastResetDate.year != now.year) {
+       
+       // FIXED: Added 'final isar' definition here
+       final isar = await db; 
+       await isar.writeTxn(() async {
+          _resetCountsIfNeeded(sub);
+          await isar.userSubscriptions.put(sub);
+       });
+    }
+    
+    if (sub.subscriptionType == 'premium' || sub.subscriptionType == 'premium_plus') {
+      return true;
+    }
+    
+    return sub.dailyScanCount < freeDailyScanLimit;
+  }
+
+  Future<bool> canChatToday() async {
+    final sub = await getSubscription();
+    if (sub == null) return false;
+    
+    final now = DateTime.now();
+    if (sub.lastResetDate.day != now.day || 
+        sub.lastResetDate.month != now.month || 
+        sub.lastResetDate.year != now.year) {
+       
+       // FIXED: Added 'final isar' definition here
+       final isar = await db;
+       await isar.writeTxn(() async {
+          _resetCountsIfNeeded(sub);
+          await isar.userSubscriptions.put(sub);
+       });
+    }
+    
+    if (sub.subscriptionType == 'premium' || sub.subscriptionType == 'premium_plus') {
+      return true;
+    }
+    
+    return sub.dailyChatCount < freeDailyChatLimit;
+  }
+
+  Future<int> getRemainingScanCount() async {
+    final sub = await getSubscription();
+    if (sub == null) return 0;
+    
+    if (sub.subscriptionType == 'premium' || sub.subscriptionType == 'premium_plus') {
+      return unlimitedLimit; 
+    }
+    
+    return (freeDailyScanLimit - sub.dailyScanCount).clamp(0, freeDailyScanLimit);
+  }
+
+  Future<int> getRemainingChatCount() async {
+    final sub = await getSubscription();
+    if (sub == null) return 0;
+    
+    if (sub.subscriptionType == 'premium' || sub.subscriptionType == 'premium_plus') {
+      return unlimitedLimit;
+    }
+    
+    return (freeDailyChatLimit - sub.dailyChatCount).clamp(0, freeDailyChatLimit);
+  }
+
   // ==================== USER PROFILE METHODS ====================
 
   Future<void> saveUserProfile(UserProfile profile) async {
@@ -174,12 +440,11 @@ class IsarService {
       profile.createdAt = DateTime.now();
     }
     
-    // Calculate nutrition goals based on profile
     profile.dailyCalorieGoal = _calculateCalorieGoal(profile);
     profile.dailyProteinGoal = _calculateProteinGoal(profile);
     profile.dailyCarbsGoal = _calculateCarbsGoal(profile);
     profile.dailyFatGoal = _calculateFatGoal(profile);
-    profile.dailyFiberGoal = 30.0; // Standard recommendation
+    profile.dailyFiberGoal = standardFiberGoal;
     
     await isar.writeTxn(() async {
       await isar.userProfiles.put(profile);
@@ -218,7 +483,6 @@ class IsarService {
     return profile != null;
   }
 
-  // Update user streak
   Future<void> _updateStreak(String userId) async {
     final profile = await getUserProfile(userId);
     if (profile == null) return;
@@ -227,7 +491,6 @@ class IsarService {
     final today = DateTime(now.year, now.month, now.day);
     
     if (profile.lastLogDate == null) {
-      // First log ever
       profile.currentStreak = 1;
       profile.lastLogDate = today;
     } else {
@@ -240,14 +503,11 @@ class IsarService {
       final daysDifference = today.difference(lastLog).inDays;
       
       if (daysDifference == 0) {
-        // Same day - no change
         return;
       } else if (daysDifference == 1) {
-        // Consecutive day - increment streak
         profile.currentStreak += 1;
         profile.lastLogDate = today;
       } else {
-        // Broke streak - reset
         profile.currentStreak = 1;
         profile.lastLogDate = today;
       }
@@ -273,13 +533,12 @@ class IsarService {
       'todayFat': todayNutrition['fat'] ?? 0.0,
       'fatGoal': profile?.dailyFatGoal ?? 70.0,
       'todayFiber': todayNutrition['fiber'] ?? 0.0,
-      'fiberGoal': profile?.dailyFiberGoal ?? 30.0,
+      'fiberGoal': profile?.dailyFiberGoal ?? standardFiberGoal,
       'mealsLogged': todayLogs.length,
       'currentStreak': profile?.currentStreak ?? 0,
     };
   }
 
-  // Get meal distribution for today
   Future<Map<String, int>> getTodayMealDistribution(String userId) async {
     final logs = await getTodayLogs(userId);
     final distribution = <String, int>{};
@@ -294,7 +553,6 @@ class IsarService {
   // ==================== NUTRITION GOAL CALCULATIONS ====================
 
   double _calculateCalorieGoal(UserProfile profile) {
-    // BMR calculation (Mifflin-St Jeor Equation)
     double bmr;
     if (profile.gender == 'male') {
       bmr = (10 * profile.currentWeight) + (6.25 * profile.height) - (5 * profile.age) + 5;
@@ -302,7 +560,6 @@ class IsarService {
       bmr = (10 * profile.currentWeight) + (6.25 * profile.height) - (5 * profile.age) - 161;
     }
     
-    // Activity multiplier
     double activityMultiplier;
     switch (profile.activityLevel) {
       case 'sedentary':
@@ -326,13 +583,12 @@ class IsarService {
     
     double tdee = bmr * activityMultiplier;
     
-    // Adjust based on goal
     switch (profile.goal) {
       case 'weight_loss':
-        return tdee - 500; // 500 calorie deficit
+        return tdee - 500; 
       case 'weight_gain':
       case 'muscle_gain':
-        return tdee + 500; // 500 calorie surplus
+        return tdee + 500; 
       case 'maintain':
       default:
         return tdee;
@@ -340,7 +596,6 @@ class IsarService {
   }
 
   double _calculateProteinGoal(UserProfile profile) {
-    // Protein: 1.6-2.2g per kg body weight for muscle gain, 1.2-1.6g for maintenance/loss
     if (profile.goal == 'muscle_gain') {
       return profile.currentWeight * 2.0;
     } else {
@@ -349,15 +604,13 @@ class IsarService {
   }
 
   double _calculateCarbsGoal(UserProfile profile) {
-    // Carbs: 45-65% of total calories (using 50%)
     final calorieGoal = _calculateCalorieGoal(profile);
-    return (calorieGoal * 0.5) / 4; // 4 calories per gram of carbs
+    return (calorieGoal * 0.5) / 4; 
   }
 
   double _calculateFatGoal(UserProfile profile) {
-    // Fat: 20-35% of total calories (using 25%)
     final calorieGoal = _calculateCalorieGoal(profile);
-    return (calorieGoal * 0.25) / 9; // 9 calories per gram of fat
+    return (calorieGoal * 0.25) / 9; 
   }
 
   // ==================== DATABASE MAINTENANCE ====================
@@ -397,6 +650,78 @@ class IsarService {
         .filter()
         .userIdEqualTo(userId)
         .count();
+  }
+
+  // ==================== COMPREHENSIVE STATS ====================
+
+  Future<Map<String, dynamic>> getWeeklyStats(String userId) async {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final logs = await getLogsByDateRange(
+      userId,
+      DateTime(weekStart.year, weekStart.month, weekStart.day),
+      DateTime(now.year, now.month, now.day, 23, 59, 59),
+    );
+
+    double totalCalories = 0;
+    double totalProtein = 0;
+    double totalCarbs = 0;
+    double totalFat = 0;
+
+    for (var log in logs) {
+      totalCalories += log.totalCalories;
+      totalProtein += log.totalProtein;
+      totalCarbs += log.totalCarbs;
+      totalFat += log.totalFat;
+    }
+
+    final daysLogged = logs.map((log) => 
+      DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day)
+    ).toSet().length;
+
+    return {
+      'totalMeals': logs.length,
+      'daysLogged': daysLogged,
+      'avgDailyCalories': daysLogged > 0 ? totalCalories / daysLogged : 0,
+      'avgDailyProtein': daysLogged > 0 ? totalProtein / daysLogged : 0,
+      'avgDailyCarbs': daysLogged > 0 ? totalCarbs / daysLogged : 0,
+      'avgDailyFat': daysLogged > 0 ? totalFat / daysLogged : 0,
+    };
+  }
+
+  Future<Map<String, dynamic>> getMonthlyStats(String userId) async {
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final logs = await getLogsByDateRange(
+      userId,
+      monthStart,
+      DateTime(now.year, now.month, now.day, 23, 59, 59),
+    );
+
+    double totalCalories = 0;
+    double totalProtein = 0;
+    double totalCarbs = 0;
+    double totalFat = 0;
+
+    for (var log in logs) {
+      totalCalories += log.totalCalories;
+      totalProtein += log.totalProtein;
+      totalCarbs += log.totalCarbs;
+      totalFat += log.totalFat;
+    }
+
+    final daysLogged = logs.map((log) => 
+      DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day)
+    ).toSet().length;
+
+    return {
+      'totalMeals': logs.length,
+      'daysLogged': daysLogged,
+      'avgDailyCalories': daysLogged > 0 ? totalCalories / daysLogged : 0,
+      'avgDailyProtein': daysLogged > 0 ? totalProtein / daysLogged : 0,
+      'avgDailyCarbs': daysLogged > 0 ? totalCarbs / daysLogged : 0,
+      'avgDailyFat': daysLogged > 0 ? totalFat / daysLogged : 0,
+    };
   }
 
   Future<void> closeDB() async {

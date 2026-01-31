@@ -4,9 +4,11 @@ import 'package:isar/isar.dart'; // REQUIRED for .watch()
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Ensure these paths match your project structure
+// Services & Entities
 import 'package:aahar_ai/data/local/isar_service.dart';
 import 'package:aahar_ai/data/local/entities/food_log.dart';
+import 'package:aahar_ai/data/local/entities/user_profile.dart'; // To get the name
+import 'package:aahar_ai/services/pdf_service.dart'; // To generate the PDF
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -28,6 +30,51 @@ class HistoryScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
+        
+        // --- PDF EXPORT BUTTON ---
+        actions: [
+          FutureBuilder<Isar>(
+            future: isarService.db,
+            builder: (context, snapshot) {
+              // Wait for DB to be ready
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              
+              return IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF2E7D32)),
+                tooltip: 'Export Professional Report',
+                onPressed: () async {
+                  final isar = snapshot.data!;
+                  
+                  // A. Fetch all logs for this user (Snapshot, not stream)
+                  final logs = await isar.foodLogs
+                      .filter()
+                      .userIdEqualTo(_userId)
+                      .sortByTimestampDesc()
+                      .findAll();
+                  
+                  if (logs.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("No meals to export yet!")),
+                    );
+                    return;
+                  }
+
+                  // B. Fetch Real User Name
+                  String userName = "Aahar User"; 
+                  final profile = await isar.userProfiles.where().findFirst();
+                  if (profile != null && profile.name.isNotEmpty) {
+                    userName = profile.name;
+                  }
+
+                  // C. Generate PDF
+                  await PdfService.generateAndPrintLog(logs, userName);
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+        // -------------------------
       ),
       body: FutureBuilder<Isar>(
         // 2. Wait for DB to initialize
@@ -39,13 +86,13 @@ class HistoryScreen extends StatelessWidget {
 
           final isar = dbSnapshot.data!;
 
-          // 3. WATCH the database for changes (This makes it dynamic)
+          // 3. WATCH the database for changes (Real-time updates)
           return StreamBuilder<List<FoodLog>>(
             stream: isar.foodLogs
                 .filter()
                 .userIdEqualTo(_userId)
                 .sortByTimestampDesc()
-                .watch(fireImmediately: true), // <--- Vital for real-time updates
+                .watch(fireImmediately: true), 
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
@@ -57,7 +104,7 @@ class HistoryScreen extends StatelessWidget {
                 return _emptyState();
               }
 
-              // 4. Group logic (Same as your previous code)
+              // 4. Group logic by Date
               final grouped = _groupByDate(logs);
               final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
@@ -137,9 +184,10 @@ class _DaySection extends StatelessWidget {
   final List<FoodLog> logs;
 
   const _DaySection({
+    Key? key,
     required this.date,
     required this.logs,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

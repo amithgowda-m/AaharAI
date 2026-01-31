@@ -26,7 +26,8 @@ dependencies:
   isar_flutter_libs: ^3.1.0+1
   image_picker: ^1.2.1
   google_generative_ai: ^0.4.6
-  
+  pdf: ^3.10.4
+  printing: ^5.11.1
 
 dev_dependencies:
   flutter_test:

@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/login_screen.dart';
 import '../auth/signup_screen.dart';
 import '../auth/forgot_password_screen.dart';
+import '../auth/update_password_screen.dart';
 import '../auth/auth_service.dart';
 import '../auth/auth_notifier.dart';
 import '../features/dashboard/presentation/user_home.dart';
 import '../features/dashboard/presentation/consultation_screen.dart';
 import '../consultation/chat_screen.dart';
 import '../features/scanner/presentation/add_meal_screen.dart';
+import '../features/profile/presentation/profile_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = AuthNotifier();
@@ -22,6 +24,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = state.matchedLocation == '/login';
       final isSigningUp = state.matchedLocation == '/signup';
       final isForgotPassword = state.matchedLocation == '/forgot-password';
+      final isPasswordRecovery = authNotifier.isPasswordRecovery;
+
+      // Handle Password Recovery Redirect
+      if (isPasswordRecovery) {
+        return '/update-password';
+      }
 
       // If not authenticated and trying to access protected routes
       if (!isAuthenticated && !isLoggingIn && !isSigningUp && !isForgotPassword) {
@@ -53,6 +61,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: 'forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
+      GoRoute(
+        path: '/update-password',
+        name: 'update-password',
+        builder: (context, state) => const UpdatePasswordScreen(),
+      ),
 
       // -------- HOME --------
       GoRoute(
@@ -83,6 +96,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/add_meal',
         name: 'add_meal',
         builder: (context, state) => const AddMealScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
     ],
   );

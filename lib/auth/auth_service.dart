@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:aahar_ai/data/local/isar_service.dart';
 
 class AuthService {
   static final _supabase = Supabase.instance.client;
@@ -10,6 +11,7 @@ class AuthService {
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: 'io.supabase.aaharai://login-callback',
       );
 
       if (response.user == null) {
@@ -49,14 +51,14 @@ class AuthService {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
+ 
       if (googleUser == null) {
         return "Google sign-in canceled";
       }
-
+ 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
+      final String? accessToken = googleAuth.accessToken;
+      final String? idToken = googleAuth.idToken;
 
       if (accessToken == null) {
         return "No Access Token found.";
@@ -111,9 +113,48 @@ class AuthService {
   // Request password reset email
   static Future<String?> resetPassword(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email);
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'io.supabase.aaharai://login-callback',
+      );
       return null; // Success
     } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
+  }
+
+  // Update password (for authenticated user)
+  static Future<String?> updatePassword(String password) async {
+    try {
+      final response = await _supabase.auth.updateUser(
+        UserAttributes(password: password),
+      );
+      
+      if (response.user == null) {
+        return "Failed to update password.";
+      }
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
+  }
+
+  // Delete account
+  static Future<String?> deleteAccount() async {
+    try {
+      // Call Supabase Edge Function or RPC logic
+      await _supabase.rpc('delete_user');
+      
+      // Clear local data
+      await IsarService().clearAllLocalData();
+      
+      await signOut(); // Ensure local session is cleared
+      return null; // Success
+    } on PostgrestException catch (e) {
       return e.message;
     } catch (e) {
       return "An unexpected error occurred: $e";

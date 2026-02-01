@@ -204,7 +204,7 @@ class _DaySection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  "${totalCalories.toInt()} cal • ${totalProtein.toStringAsFixed(1)}g P",
+                  "${totalCalories.toInt()} kcal • ${totalProtein.toStringAsFixed(1)}g P",
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
                 ),
               ),
@@ -238,7 +238,7 @@ class _DaySection extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text("${log.totalCalories.toInt()} cal", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                    Text("${log.totalCalories.toInt()} kcal", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
                     Text("${log.totalProtein.toStringAsFixed(1)}g protein", style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                   ],
                 ),

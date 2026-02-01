@@ -61,14 +61,26 @@ class _SignupScreenState extends State<SignupScreen> {
     } else {
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Please login.'),
-            backgroundColor: Colors.green,
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text("Verify your email"),
+            content: Text(
+              "A verification link has been sent to $e.\nPlease check your email and click the link to verify your account.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  context.pop(); // Close dialog
+                  context.go('/login');
+                },
+                child: const Text("OK"),
+              ),
+            ],
           ),
         );
       }
-      context.go('/login');
     }
   }
 

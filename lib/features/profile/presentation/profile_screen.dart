@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/local/isar_service.dart';
 import '../../../../data/local/entities/user_profile.dart';
-import '../../../../services/auth_service.dart';
+import 'package:aahar_ai/auth/auth_service.dart';
 import 'package:aahar_ai/features/auth/presentation/login_screen.dart';
 
 
 class ProfileScreen extends ConsumerStatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -169,6 +171,88 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           MaterialPageRoute(builder: (context) => LoginScreen()),
           (route) => false,
         );
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Account', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to permanently delete your account?'),
+            SizedBox(height: 12),
+            Text('⚠️ This action cannot be undone.', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[900])),
+            Text('All your data including diet plans, history, and preferences will be erased forever.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('DELETE PERMANENTLY'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      // Double check
+      final doubleConfirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Final Confirmation'),
+          content: Text('Please confirm one last time. There is no going back.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('I UNDERSTAND, DELETE'),
+            ),
+          ],
+        ),
+      );
+
+      if (doubleConfirm == true) {
+        if (!mounted) return;
+        setState(() => isLoading = true);
+        final error = await AuthService.deleteAccount();
+        
+        if (error != null) {
+          if (mounted) {
+            setState(() => isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $error')),
+            );
+          }
+        } else {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+              (route) => false,
+            );
+          }
+        }
       }
     }
   }
@@ -520,6 +604,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ),
+            SizedBox(height: 16),
+
+            // Delete Account Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: TextButton.icon(
+                onPressed: _deleteAccount,
+                icon: Icon(Icons.delete_forever, color: Colors.red),
+                label: Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.red,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                   foregroundColor: Colors.red,
+                ),
+              ),
+            ),
+            SizedBox(height: 24),
           ],
         ),
       ),

@@ -9,7 +9,7 @@ import '../../../data/local/isar_service.dart';
 import '../../../data/local/entities/food_log.dart';
 import 'history_screen.dart';
 import 'ai_insights_screen.dart';
-import '../../../services/auth_service.dart';
+import '../../../auth/auth_service.dart';
 
 // ---------------- PROVIDERS ----------------
 
@@ -47,7 +47,7 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person_outline),
-            onPressed: () => context.push('/consultation'),
+            onPressed: () => context.push('/profile'),
           ),
         ],
       ),

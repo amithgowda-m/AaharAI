@@ -724,6 +724,17 @@ class IsarService {
     };
   }
 
+  Future<void> clearAllLocalData() async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.foodLogs.clear();
+      await isar.userProfiles.clear();
+      await isar.mealRecommendations.clear();
+      await isar.dietPlans.clear();
+      await isar.userSubscriptions.clear();
+    });
+  }
+
   Future<void> closeDB() async {
     final isar = await db;
     await isar.close();

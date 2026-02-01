@@ -552,7 +552,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${meal.totalCalories.toInt()} Cal',
+                '${meal.totalCalories.toInt()} kcal',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

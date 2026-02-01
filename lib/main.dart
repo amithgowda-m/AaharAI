@@ -1,4 +1,3 @@
-// lib/main.dart - REPLACE ENTIRE FILE
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,7 @@ import 'package:provider/provider.dart' as provider;
 // Imports based on your file structure
 import 'features/auth/presentation/login_screen.dart';
 import 'features/dashboard/presentation/main_navigation_screen.dart';
-import 'services/auth_service.dart';
+import 'auth/auth_service.dart';
 
 // Recommendation system imports
 import 'data/local/isar_service.dart';

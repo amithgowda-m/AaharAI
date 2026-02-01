@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   static final _supabase = Supabase.instance.client;
@@ -33,6 +34,45 @@ class AuthService {
 
       if (response.user == null) {
         return "Login failed. Please check your credentials.";
+      }
+
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
+  }
+
+  // Sign in with Google
+  static Future<String?> signInWithGoogle() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        return "Google sign-in canceled";
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (accessToken == null) {
+        return "No Access Token found.";
+      }
+      if (idToken == null) {
+        return "No ID Token found.";
+      }
+
+      final response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      if (response.user == null) {
+        return "Google Login failed.";
       }
 
       return null; // Success

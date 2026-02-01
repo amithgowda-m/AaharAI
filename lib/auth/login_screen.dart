@@ -29,8 +29,21 @@ class _LoginScreenState extends State<LoginScreen> {
     final result = await AuthService.login(e, p);
 
     if (result != null) {
+      if (!mounted) return;
       setState(() => error = result);
     } else {
+      if (!mounted) return;
+      context.go('/');
+    }
+  }
+
+  void doGoogleLogin() async {
+    final result = await AuthService.signInWithGoogle();
+    if (result != null) {
+      if (!mounted) return;
+      setState(() => error = result);
+    } else {
+      if (!mounted) return;
       context.go('/');
     }
   }
@@ -97,6 +110,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: "Password",
                       ),
                     ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push('/forgot-password'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                        ),
+                        child: const Text("Forgot Password?"),
+                      ),
+                    ),
                     if (error != null) ...[
                       const SizedBox(height: 10),
                       Text(
@@ -112,6 +135,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextButton(
                       onPressed: () => context.go('/signup'),
                       child: const Text("Create Account"),
+                    ),
+                    const SizedBox(height: 16),
+                    const Row(children: [
+                      Expanded(child: Divider(color: Colors.white24)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text("OR", style: TextStyle(color: Colors.white54)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white24)),
+                    ]),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: doGoogleLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                      ),
+                      child: const Text("Sign in with Google"),
                     ),
                   ],
                 ),

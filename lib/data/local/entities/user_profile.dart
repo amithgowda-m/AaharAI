@@ -1,5 +1,3 @@
-// lib/data/local/entities/user_profile.dart - REPLACE ENTIRE FILE
-
 import 'package:isar/isar.dart';
 
 part 'user_profile.g.dart';
@@ -11,65 +9,71 @@ class UserProfile {
   @Index(unique: true)
   late String userId; // Supabase user ID
   
-  // Basic Info
+  // --- BASIC INFO ---
   late String email;
   late String name;
   late int age;
   late String gender; // 'male' or 'female'
   
-  // Physical Stats
+  // --- PHYSICAL STATS (Used by Mifflin-St Jeor Equation) ---
   late double currentWeight; // in kg
   late double targetWeight; // in kg
   late double height; // in cm
   
-  // Goals
+  // --- GOALS & LIFESTYLE ---
   late String goal; // 'weight_loss', 'weight_gain', 'maintain', 'muscle_gain'
   late String activityLevel; // 'sedentary', 'light', 'moderate', 'active', 'very_active'
   
-  // Health Conditions
-  List<String> healthConditions = []; // ['none', 'diabetic', 'hypertension', etc.]
+  // --- HEALTH & MEDICAL ---
+  List<String> healthConditions = []; // ['Diabetes', 'Hypertension', 'PCOS', etc.]
   String? healthConditionDetails;
   
-  // Exercise
+  // --- EXERCISE ---
   late String exerciseGoal; // 'none', 'light', 'moderate', 'intense'
   int exerciseMinutesPerWeek = 0;
   
-  // Nutrition Goals (calculated)
+  // --- NUTRITION TARGETS (Calculated or Manual) ---
   late double dailyCalorieGoal;
   late double dailyProteinGoal;
   late double dailyCarbsGoal;
   late double dailyFatGoal;
   late double dailyFiberGoal;
   
-  // Budget & Preferences
+  // --- PREFERENCES ---
   double? weeklyBudget;
   List<String> dietaryRestrictions = [];
   List<String> foodAllergies = [];
-  // NEW: Added this field to match your RecommendationProvider logic
   List<String> dietaryPreferences = []; 
   
-  // Timestamps
+  // --- METADATA ---
   DateTime? createdAt;
   DateTime? updatedAt;
   
-  // Streak tracking
+  // --- STREAK TRACKING ---
   int currentStreak = 0;
   DateTime? lastLogDate;
   
-  // Legacy field (keep for compatibility)
+  // --- LEGACY ---
   int? dailyCalorieTarget;
-  // Add this inside your UserProfile class
+
+  // =========================================================
+  // HELPER GETTERS (Required for PDF & Insights)
+  // =========================================================
+
+  /// Calculates BMI dynamically based on current weight and height
   double get bmi {
     if (height <= 0) return 0;
-    // BMI Formula: Weight (kg) / Height (m)²
+    // Formula: Weight (kg) / Height (m)²
     double heightInMeters = height / 100;
     return currentWeight / (heightInMeters * heightInMeters);
   }
 
+  /// Returns the medical category for the current BMI
   String get bmiCategory {
     double val = bmi;
+    if (val <= 0) return "Unknown";
     if (val < 18.5) return "Underweight";
-    if (val < 24.9) return "Normal";
+    if (val < 24.9) return "Normal Weight";
     if (val < 29.9) return "Overweight";
     return "Obese";
   }

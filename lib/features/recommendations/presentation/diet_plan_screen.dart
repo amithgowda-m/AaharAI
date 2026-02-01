@@ -13,8 +13,10 @@ class _DietPlanScreenState extends State<DietPlanScreen> {
   @override
   void initState() {
     super.initState();
+    // FIX: Use refreshRecommendations() instead of loadRecommendations()
+    // This forces the data to fetch immediately when the screen opens.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RecommendationProvider>().loadRecommendations();
+      context.read<RecommendationProvider>().refreshRecommendations();
     });
   }
 
@@ -250,7 +252,7 @@ class _DietPlanScreenState extends State<DietPlanScreen> {
                 ),
               ),
 
-              // Reason Box (Restored to clean grey footer)
+              // Reason Box
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),

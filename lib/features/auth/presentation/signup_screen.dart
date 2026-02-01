@@ -1,13 +1,12 @@
-// lib/features/auth/presentation/signup_screen.dart - CREATE THIS FILE
+// lib/features/auth/presentation/signup_screen.dart
 
 import 'package:flutter/material.dart';
-import '../../../services/auth_service.dart';
-import '../../../data/local/isar_service.dart';
-import '../../../data/local/entities/user_profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:aahar_ai/features/onboarding/presentation/onboarding_flow_screen.dart';
+import '../../../services/auth_service.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
+  const SignUpScreen({super.key});
+
   @override
   ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
@@ -51,11 +50,29 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           );
         }
       } else {
-        // Navigate to onboarding flow
+        // --- SUCCESS: Show Verification Dialog ---
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => OnboardingFlowScreen()),
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Verify Your Email'),
+              content: Text(
+                'A verification link has been sent to ${_emailController.text}.\n\nPlease check your inbox and click the link to verify your account before logging in.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close Dialog
+                    Navigator.pop(context); // Go back to Login Screen
+                  },
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
           );
         }
       }
@@ -70,6 +87,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -107,12 +128,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
+                    if (value == null || value.isEmpty) return 'Please enter your email';
+                    if (!value.contains('@')) return 'Please enter a valid email';
                     return null;
                   },
                 ),
@@ -140,12 +157,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
+                    if (value == null || value.isEmpty) return 'Please enter a password';
+                    if (value.length < 6) return 'Password must be at least 6 characters';
                     return null;
                   },
                 ),
@@ -173,9 +186,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
+                    if (value != _passwordController.text) return 'Passwords do not match';
                     return null;
                   },
                 ),

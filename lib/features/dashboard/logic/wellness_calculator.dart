@@ -1,125 +1,102 @@
-import 'package:aahar_ai/data/local/entities/food_log.dart';
 import 'package:aahar_ai/data/local/entities/user_profile.dart';
 
 class WellnessCalculator {
   
-  /// Calculates the EXACT Daily Calorie Goal using Mifflin-St Jeor Equation
-  static double calculateDailyCalories(UserProfile profile) {
-    // 1. Base BMR (Basal Metabolic Rate)
+  /// Calculates scientifically accurate nutrition targets.
+  /// Returns a Map with keys: 'calories', 'protein', 'fat', 'carbs', 'fiber'
+  static Map<String, double> calculateScientificTargets(UserProfile profile) {
+    // 1. Calculate BMR (Mifflin-St Jeor Equation) - The clinical standard
     double bmr;
+    // Safety check for height/weight/age to prevent crashes
+    double weight = profile.currentWeight > 0 ? profile.currentWeight : 70.0;
+    double height = profile.height > 0 ? profile.height : 170.0;
+    int age = profile.age > 0 ? profile.age : 25;
+
     if (profile.gender.toLowerCase() == 'male') {
-      bmr = (10 * profile.currentWeight) + (6.25 * profile.height) - (5 * profile.age) + 5;
+      bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
     } else {
-      // Female calculation
-      bmr = (10 * profile.currentWeight) + (6.25 * profile.height) - (5 * profile.age) - 161;
+      bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
     }
 
-    // 2. Activity Multiplier
-    double multiplier = 1.2; // Default Sedentary
+    // 2. Define Factors based on Activity Level
+    double tdeeMultiplier = 1.2; // For Calories
+    double proteinMultiplier = 1.0; // Grams per KG of bodyweight
+
     switch (profile.activityLevel.toLowerCase()) {
-      case 'light': multiplier = 1.375; break;
-      case 'moderate': multiplier = 1.55; break;
-      case 'active': multiplier = 1.725; break;
-      case 'very_active': // Matching your enum style
-      case 'very active': multiplier = 1.9; break;
+      case 'sedentary':
+        tdeeMultiplier = 1.2;
+        proteinMultiplier = 1.0; // Basic health
+        break;
+      case 'light':
+        tdeeMultiplier = 1.375;
+        proteinMultiplier = 1.2; // Light movement
+        break;
+      case 'moderate':
+        tdeeMultiplier = 1.55;
+        proteinMultiplier = 1.6; // Regular training
+        break;
+      case 'active':
+        tdeeMultiplier = 1.725;
+        proteinMultiplier = 1.8; // Athlete
+        break;
+      case 'very_active':
+      case 'very active':
+        tdeeMultiplier = 1.9;
+        proteinMultiplier = 2.0; // Endurance athlete
+        break;
+      default:
+        // Default to sedentary if unknown string
+        tdeeMultiplier = 1.2;
+        proteinMultiplier = 1.0;
     }
 
-    double maintenanceCalories = bmr * multiplier;
-
-    // 3. Adjust for Goal
-    if (profile.goal.contains('loss')) {
-      return maintenanceCalories - 500; // Deficit
-    } else if (profile.goal.contains('gain') || profile.goal.contains('muscle')) {
-      return maintenanceCalories + 300; // Surplus
+    // -- Goal Adjustments --
+    // If goal is muscle gain or weight loss, protein needs are higher to preserve/build muscle.
+    if (profile.goal.toLowerCase().contains('loss') || profile.goal.toLowerCase().contains('muscle')) {
+      if (proteinMultiplier < 1.6) proteinMultiplier = 1.6; 
     }
+
+    // 3. Calculate Calories (TDEE + Goal)
+    double tdee = bmr * tdeeMultiplier;
+    double targetCalories = tdee;
+
+    if (profile.goal.toLowerCase().contains('loss')) {
+      targetCalories = tdee - 500; // Safe deficit
+    } else if (profile.goal.toLowerCase().contains('gain') || profile.goal.toLowerCase().contains('muscle')) {
+      targetCalories = tdee + 300; // Lean surplus
+    }
+
+    // --- 4. MACRO CALCULATIONS (Scientific Priority) ---
+
+    // A. PROTEIN: Based on Body Weight (Not Calories)
+    // Science: Needs are driven by lean mass & activity.
+    double targetProtein = weight * proteinMultiplier;
+
+    // B. FAT: Hormonal Minimum
+    // Science: 0.8g/kg is standard to maintain hormone function.
+    double targetFat = weight * 0.8;
+
+    // C. CARBS: The Energy Lever (Remainder)
+    // Science: Carbs fill the remaining energy budget after essential protein/fats.
+    double caloriesFromProtein = targetProtein * 4;
+    double caloriesFromFat = targetFat * 9;
+    double remainingCalories = targetCalories - (caloriesFromProtein + caloriesFromFat);
     
-    return maintenanceCalories; // Maintain
-  }
+    // Ensure carbs don't go negative
+    if (remainingCalories < 0) remainingCalories = 0;
+    double targetCarbs = remainingCalories / 4;
 
-  /// Calculates a 0-100 Health Score based on User's specific conditions
-  static Map<String, dynamic> calculateMetabolicScore(List<FoodLog> logs, UserProfile profile) {
-    if (logs.isEmpty) {
-      return {
-        'score': 100, 
-        'message': 'Ready to fuel your body? Log your first meal!', 
-        'color': 0xFF2E7D32 // Green
-      };
-    }
-
-    double score = 100;
-    double totalCarbs = 0;
-    double totalFiber = 0;
-    double totalProtein = 0;
-    double totalSugar = 0; 
-
-    // Aggregate data
-    for (var log in logs) {
-      totalCarbs += log.totalCarbs;
-      totalFiber += log.totalFiber;
-      totalProtein += log.totalProtein;
-    }
-
-    // --- 1. THE "JUNK FOOD" PENALTY (Generic) ---
-    // If high carbs but low fiber, it's likely processed food
-    if (totalCarbs > 40 && totalFiber < 3) {
-      score -= 10;
-    }
-
-    // --- 2. DIABETIC / INSULIN CHECK ---
-    // Checks if 'diabetic' exists in healthConditions OR dietaryPreferences
-    bool isDiabetic = profile.healthConditions.any((c) => c.toLowerCase().contains('diabetic')) || 
-                      profile.dietaryPreferences.any((p) => p.toLowerCase().contains('diabetic'));
-    
-    if (isDiabetic) {
-      // Strict rule: Fiber needs to be high to buffer sugar
-      if (totalCarbs > 100 && totalFiber < 10) {
-        score -= 15; // Heavy penalty for sugar spikes
-      }
-    }
-
-    // --- 3. FEMALE HEALTH CHECK (Hormonal Health) ---
-    if (profile.gender.toLowerCase() == 'female') {
-      // Protein is crucial for hormonal balance and energy
-      if (totalProtein < 20 && totalCarbs > 80) {
-        score -= 5;
-      }
-    }
-
-    // --- 4. MUSCLE GAIN CHECK ---
-    if (profile.goal.contains('muscle') && totalProtein < 30) {
-      score -= 5; // Penalty for missing protein target
-    }
-
-    // Clamp score
-    score = score.clamp(0, 100);
-
-    // --- GENERATE PERSONALIZED INSIGHT ---
-    String message = "You're doing great!";
-    int color = 0xFF2E7D32; // Green
-
-    if (score >= 80) {
-      message = "Metabolic state is optimized. Keep it up! 🔥";
-      color = 0xFF2E7D32;
-    } else if (score >= 60) {
-      color = 0xFFFFA000; // Orange
-      if (isDiabetic) {
-        message = "⚠️ Watch your carb intake to prevent blood sugar spikes.";
-      } else if (profile.gender.toLowerCase() == 'female') {
-        message = "💡 Energy dip detected. Try adding more iron/protein.";
-      } else if (totalFiber < 10) {
-        message = "📉 Fiber is low. Eat a fruit or veggie for better digestion.";
-      } else {
-        message = "Good, but try to eat cleaner whole foods next meal.";
-      }
-    } else {
-      color = 0xFFD32F2F; // Red
-      message = "🚨 Nutrition off-balance. Focus on protein and veggies for dinner.";
-    }
+    // D. FIBER: Calorie Based
+    // Science: 14g per 1000kcal is the dietary guideline.
+    double targetFiber = (targetCalories / 1000) * 14;
+    if (targetFiber < 25) targetFiber = 25; // Minimum floor
 
     return {
-      'score': score.round(),
-      'message': message,
-      'color': color,
+      'calories': targetCalories,
+      'protein': targetProtein,
+      'fat': targetFat,
+      'carbs': targetCarbs,
+      'fiber': targetFiber,
     };
   }
 }

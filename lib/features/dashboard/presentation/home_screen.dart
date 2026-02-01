@@ -7,7 +7,7 @@ import '../../profile/presentation/profile_screen.dart';
 import '../../../data/local/isar_service.dart';
 import '../../../data/local/entities/food_log.dart';
 import '../../../services/auth_service.dart';
-import '../logic/wellness_calculator.dart'; // Import the new logic
+import '../logic/wellness_calculator.dart'; 
 
 class HomeScreen extends ConsumerStatefulWidget {
   @override
@@ -15,23 +15,28 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // Stats
+  // Consumed Stats
   double caloriesConsumed = 0.0;
-  double caloriesTarget = 2000.0; // Will be overwritten by Calculator
   double proteinConsumed = 0.0;
   double carbsConsumed = 0.0;
   double fatConsumed = 0.0;
   double fiberConsumed = 0.0;
+
+  // Target Stats (Calculated Scientifically)
+  double caloriesTarget = 2000.0; 
+  double proteinTarget = 100.0; 
+  double carbsTarget = 250.0;
+  double fatTarget = 70.0;
+  double fiberTarget = 30.0;
   
-  // Profile Data
+  // Profile & Status Data
   String userName = 'User';
+  int currentStreak = 0;      
+  double currentBmi = 0.0;    
+  String bmiCategory = "";    
+  
   List<FoodLog> recentMeals = [];
   bool isLoading = true;
-
-  // Wellness Score Data
-  int wellnessScore = 100;
-  String wellnessMessage = "Start your day right!";
-  int wellnessColor = 0xFF2E7D32;
   
   @override
   void initState() {
@@ -52,35 +57,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final isarService = ref.read(isarProvider);
       
-      // 1. Load user profile & Calculate Dynamic Goals
+      // 1. Load user profile & Calculate SCIENTIFIC GOALS
       final profile = await isarService.getUserProfile(currentUser.id);
       
       if (profile != null) {
-        userName = profile.name;
-        // DYNAMIC CALCULATION:
-        caloriesTarget = WellnessCalculator.calculateDailyCalories(profile);
+        // --- USE NEW CALCULATOR ---
+        final targets = WellnessCalculator.calculateScientificTargets(profile);
+        
+        setState(() {
+          userName = profile.name;
+          // Stats
+          currentStreak = profile.currentStreak;
+          currentBmi = profile.bmi;
+          bmiCategory = profile.bmiCategory;
+          
+          // Targets
+          caloriesTarget = targets['calories'] ?? 2000.0;
+          proteinTarget = targets['protein'] ?? 100.0;
+          fatTarget = targets['fat'] ?? 70.0;
+          carbsTarget = targets['carbs'] ?? 250.0;
+          fiberTarget = targets['fiber'] ?? 30.0;
+        });
       }
 
       // 2. Load dashboard stats
       final stats = await isarService.getDashboardStats(currentUser.id);
-      caloriesConsumed = stats['todayCalories'] ?? 0.0;
-      proteinConsumed = stats['todayProtein'] ?? 0.0;
-      carbsConsumed = stats['todayCarbs'] ?? 0.0;
-      fatConsumed = stats['todayFat'] ?? 0.0;
-      fiberConsumed = stats['todayFiber'] ?? 0.0;
-
+      
       // 3. Load recent meals
-      recentMeals = await isarService.getTodayLogs(currentUser.id);
+      final todaysMeals = await isarService.getTodayLogs(currentUser.id);
 
-      // 4. Calculate Wellness/Metabolic Score
-      if (profile != null) {
-        final scoreData = WellnessCalculator.calculateMetabolicScore(recentMeals, profile);
-        wellnessScore = scoreData['score'];
-        wellnessMessage = scoreData['message'];
-        wellnessColor = scoreData['color'];
+      if (mounted) {
+        setState(() {
+          caloriesConsumed = stats['todayCalories'] ?? 0.0;
+          proteinConsumed = stats['todayProtein'] ?? 0.0;
+          carbsConsumed = stats['todayCarbs'] ?? 0.0;
+          fatConsumed = stats['todayFat'] ?? 0.0;
+          fiberConsumed = stats['todayFiber'] ?? 0.0;
+          recentMeals = todaysMeals;
+          isLoading = false;
+        });
       }
-
-      if (mounted) setState(() => isLoading = false);
     } catch (e) {
       print('Error loading dashboard: $e');
       if (mounted) setState(() => isLoading = false);
@@ -189,67 +205,129 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 
                 const SizedBox(height: 24),
 
-                // 2. NEW: Wellness Score Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(wellnessColor).withOpacity(0.85), Color(wellnessColor)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(wellnessColor).withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // Score Circle
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: const BoxDecoration(
+                // 2. NEW: Quick Stats Row (Streak & BMI) - FIXED UI
+                Row(
+                  children: [
+                    // Streak Card
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        decoration: BoxDecoration(
                           color: Colors.white,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05), // Cleaner shadow
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          "$wellnessScore",
-                          style: TextStyle(
-                            fontSize: 24, 
-                            fontWeight: FontWeight.bold, 
-                            color: Color(wellnessColor)
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Insight Text
-                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "Metabolic Score",
-                              style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                            Row(
+                              children: [
+                                Icon(Icons.local_fire_department_rounded, color: Colors.orange[700], size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  "Streak",
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              wellnessMessage,
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                            const SizedBox(height: 10),
+                            RichText(
+                              text: TextSpan(
+                               children: [
+                                  TextSpan(
+                                    text: "$currentStreak",
+                                    style: const TextStyle(
+                                      color: Colors.black87, 
+                                      fontSize: 24, 
+                                      fontWeight: FontWeight.w800
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: " Days",
+                                    style: TextStyle(
+                                      color: Colors.grey[500], 
+                                      fontSize: 14, 
+                                      fontWeight: FontWeight.w500
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    
+                    const SizedBox(width: 20), // Increased gap to match screen padding
+                    
+                    // BMI Card
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05), // Cleaner shadow
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.monitor_weight_rounded, color: Colors.blue[700], size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  "BMI",
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  currentBmi.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    color: Colors.black87, 
+                                    fontSize: 24, 
+                                    fontWeight: FontWeight.w800
+                                  ),
+                                ),
+                                Text(
+                                  bmiCategory,
+                                  style: TextStyle(
+                                    color: Colors.grey[500], 
+                                    fontSize: 12, 
+                                    fontWeight: FontWeight.w500
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-
+                
                 const SizedBox(height: 32),
                 
-                // 3. Calorie Ring (Personalized Target)
+                // 3. Calorie Ring
                 Center(
                   child: CalorieRing(
                     consumed: caloriesConsumed,
@@ -279,6 +357,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
+                      elevation: 4,
+                      shadowColor: const Color(0xFF2E7D32).withOpacity(0.4),
                     ),
                   ),
                 ),
@@ -287,7 +367,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 
                 // 5. Macros Section
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20), // Increased internal padding
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -309,32 +389,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       MacroProgressBar(
                         name: 'Protein',
                         consumed: proteinConsumed,
-                        target: (caloriesTarget * 0.3) / 4, // Dynamic Goal
+                        target: proteinTarget,
                         color: Colors.red,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       MacroProgressBar(
                         name: 'Carbs',
                         consumed: carbsConsumed,
-                        target: (caloriesTarget * 0.4) / 4, // Dynamic Goal
+                        target: carbsTarget,
                         color: Colors.orange,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       MacroProgressBar(
                         name: 'Fat',
                         consumed: fatConsumed,
-                        target: (caloriesTarget * 0.3) / 9, // Dynamic Goal
+                        target: fatTarget,
                         color: Colors.blue,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       MacroProgressBar(
                         name: 'Fiber',
                         consumed: fiberConsumed,
-                        target: 30.0,
+                        target: fiberTarget,
                         color: Colors.purple,
                       ),
                     ],

@@ -1,11 +1,14 @@
-// lib/features/auth/presentation/login_screen.dart - CREATE THIS FILE
+// lib/features/auth/presentation/login_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import for specialized errors
 import '../../../services/auth_service.dart';
 import '../../dashboard/presentation/main_navigation_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -38,12 +41,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (error != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(error),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // Check for "Email not confirmed" error specifically if Supabase returns it
+          if (error.toLowerCase().contains('email not confirmed')) {
+             _showErrorSnackBar('Please verify your email before logging in.');
+          } else {
+             _showErrorSnackBar(error);
+          }
         }
       } else {
         if (mounted) {
@@ -56,6 +59,38 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // --- FORGOT PASSWORD LOGIC ---
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      _showErrorSnackBar('Please enter your email address first.');
+      return;
+    }
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Password reset link sent to $email'),
+            backgroundColor: Color(0xFF2E7D32),
+          ),
+        );
+      }
+    } catch (e) {
+      _showErrorSnackBar(e.toString());
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -115,12 +150,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Please enter a valid email';
-                      }
+                      if (value == null || value.isEmpty) return 'Please enter your email';
+                      if (!value.contains('@')) return 'Please enter a valid email';
                       return null;
                     },
                   ),
@@ -137,9 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       prefixIcon: Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() => _obscurePassword = !_obscurePassword);
@@ -150,14 +179,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
+                      if (value == null || value.isEmpty) return 'Please enter your password';
+                      if (value.length < 6) return 'Password must be at least 6 characters';
                       return null;
                     },
+                  ),
+
+                  // Forgot Password Button [New]
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _forgotPassword,
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(color: Color(0xFF2E7D32)),
+                      ),
+                    ),
                   ),
                   
                   SizedBox(height: 24),

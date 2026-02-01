@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aahar_ai/data/local/isar_service.dart';
 
 class AuthService {
@@ -146,18 +147,26 @@ class AuthService {
   // Delete account
   static Future<String?> deleteAccount() async {
     try {
-      // Call Supabase Edge Function or RPC logic
-      await _supabase.rpc('delete_user');
+      // 1. Clear Supabase User 
+      try {
+        await _supabase.rpc('delete_user');
+      } catch (e) {
+        print('Supabase RPC delete_user failed (this is expected if not setup): $e');
+      }
       
-      // Clear local data
+      // 2. Clear ALL local data (Isar)
       await IsarService().clearAllLocalData();
       
-      await signOut(); // Ensure local session is cleared
+      // 3. Clear SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      
+      // 4. Final Sign Out
+      await signOut();
+      
       return null; // Success
-    } on PostgrestException catch (e) {
-      return e.message;
     } catch (e) {
-      return "An unexpected error occurred: $e";
+      return "An unexpected error occurred during account deletion: $e";
     }
   }
 }

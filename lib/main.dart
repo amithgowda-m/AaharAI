@@ -8,6 +8,7 @@ import 'package:provider/provider.dart' as provider;
 // Imports based on your file structure
 import 'features/auth/presentation/login_screen.dart';
 import 'features/dashboard/presentation/main_navigation_screen.dart';
+import 'features/onboarding/presentation/onboarding_flow_screen.dart';
 import 'auth/auth_service.dart';
 
 // Recommendation system imports
@@ -141,10 +142,23 @@ class _AuthCheckerState extends State<AuthChecker> {
     
     if (mounted) {
       if (isAuthenticated) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MainNavigationScreen()),
-        );
+        final currentUser = AuthService.getCurrentUser();
+        final hasProfile = await IsarService().hasUserProfile();
+        
+        if (mounted) {
+          if (hasProfile) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => MainNavigationScreen()),
+            );
+          } else {
+            // Redirect to Onboarding if profile is missing
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => OnboardingFlowScreen()),
+            );
+          }
+        }
       } else {
         Navigator.pushReplacement(
           context,

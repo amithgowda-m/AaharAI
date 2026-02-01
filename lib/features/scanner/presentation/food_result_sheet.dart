@@ -1,5 +1,3 @@
-// lib/features/scanner/presentation/food_result_sheet.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/local/isar_service.dart';
@@ -26,10 +24,14 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
   double portionMultiplier = 1.0;
   int itemCount = 1;
   String selectedMealType = 'Breakfast';
-  List<ModifierItem> modifiers = []; // Items with quantity
+  List<ModifierItem> modifiers = [];
   bool isLoadingAI = false;
   bool isSaving = false;
   String? aiSuggestion;
+
+  // NEW: UI Variables for Volume Detection
+  String? detectedPortionDesc;
+  double? detectedWeight;
 
   final List<String> mealTypes = [
     'Breakfast', 'Morning Snack', 'Lunch', 'Evening Snack', 'Dinner', 'Late Night Snack'
@@ -41,6 +43,14 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
     final items = widget.data['items'] as List<dynamic>? ?? [];
     if (items.isNotEmpty) {
       currentItem = Map<String, dynamic>.from(items[0]);
+      
+      // ✅ CAPTURE AI VOLUME DATA (If available from the model)
+      if (currentItem.containsKey('portion_desc')) {
+        detectedPortionDesc = currentItem['portion_desc'];
+      }
+      if (currentItem.containsKey('estimated_weight_g')) {
+        detectedWeight = (currentItem['estimated_weight_g'] as num).toDouble();
+      }
     }
     _getMealTypeFromTime();
   }
@@ -60,7 +70,7 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
     return value * portionMultiplier * itemCount;
   }
 
-  // --- CALCULATION LOGIC (Includes Modifiers) ---
+  // --- CALCULATION LOGIC ---
   double _getTotalCalories() {
     final base = _getAdjustedValue(currentItem['calories']);
     final mods = modifiers.fold(0.0, (sum, mod) => sum + (mod.calories * mod.quantity));
@@ -88,29 +98,25 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
   // --- AI CHAT LOGIC ---
   Future<void> _askNutria() async {
     setState(() => isLoadingAI = true);
-
     final nutriaService = NutriaService();
     
-    // Detailed prompt for actionable advice
+    // Pass the estimated weight to Nutria for context
     final String prompt = """
     I am eating ${currentItem['name']} for $selectedMealType.
-    Total: ${_getTotalCalories().toInt()} kcal, ${_getTotalProtein().toInt()}g Protein, ${_getTotalCarbs().toInt()}g Carbs.
-    Is this balanced? Suggest 1 small change to improve it. Keep it under 2 sentences.
+    Detected Volume: ${detectedPortionDesc ?? 'Standard'} (${detectedWeight ?? 'N/A'}g).
+    Total: ${_getTotalCalories().toInt()} kcal.
+    Is this balanced? Suggest 1 small tweak.
     """;
 
-    final suggestion = await nutriaService.getChatResponse(
-      message: prompt,
-      history: [], 
-    );
-
+    final suggestion = await nutriaService.getChatResponse(message: prompt, history: []);
     setState(() {
       aiSuggestion = suggestion;
       isLoadingAI = false;
     });
-
     _showNutriaDialog();
   }
 
+  // ... (Dialog methods _showNutriaDialog and _showModifierDialog remain exactly the same as previous)
   void _showNutriaDialog() {
     showModalBottomSheet(
       context: context,
@@ -155,24 +161,9 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                 padding: const EdgeInsets.all(24),
                 child: SingleChildScrollView(
                   child: Text(
-                    aiSuggestion ?? 'Analyzing meal balance...',
-                    style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+                    aiSuggestion ?? 'Analyzing...',
+                    style: const TextStyle(fontSize: 16, height: 1.5),
                   ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text('Got it!'),
                 ),
               ),
             ),
@@ -253,17 +244,12 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Meal logged successfully!'),
-            backgroundColor: Color(0xFF2E7D32),
-          ),
+          const SnackBar(content: Text('✅ Meal logged!'), backgroundColor: Color(0xFF2E7D32)),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => isSaving = false);
@@ -285,7 +271,6 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
       ),
       child: Column(
         children: [
-          // Drag Handle
           Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
             width: 40, height: 4,
@@ -354,6 +339,35 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                       ),
                     ],
                   ),
+
+                  // ✅ NEW: AI DETECTED VOLUME INFO ✅
+                  if (detectedWeight != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.analytics_outlined, size: 16, color: Colors.purple),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              "AI Detected: $detectedPortionDesc (~${detectedWeight}g)",
+                              style: const TextStyle(
+                                fontSize: 13, 
+                                color: Colors.purple, 
+                                fontWeight: FontWeight.w600
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   const SizedBox(height: 20),
 
@@ -556,10 +570,8 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
   }
 }
 
-// ---------------------------------------------------------
-// IMPROVED MODIFIER SELECTOR (Supports Quantity + / -)
-// ---------------------------------------------------------
-
+// ... (ModifierSelector classes remain the same as previous turn)
+// Re-paste ModifierItem and ModifierSelector code here if needed or assume it's in the same file.
 class ModifierItem {
   final String name;
   final double calories;
@@ -593,7 +605,6 @@ class ModifierSelector extends StatefulWidget {
 }
 
 class _ModifierSelectorState extends State<ModifierSelector> {
-  // Base list of options
   final List<ModifierItem> commonModifiers = [
     ModifierItem(name: 'Ghee (1 tsp)', calories: 45, fat: 5),
     ModifierItem(name: 'Oil (1 tsp)', calories: 40, fat: 4.5),
@@ -655,8 +666,6 @@ class _ModifierSelectorState extends State<ModifierSelector> {
                           ],
                         ),
                       ),
-                      
-                      // Quantity Controls
                       if (qty == 0)
                         OutlinedButton(
                           onPressed: () => setState(() => selections[item.name] = 1),
@@ -685,15 +694,10 @@ class _ModifierSelectorState extends State<ModifierSelector> {
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
-                              Text(
-                                '$qty',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2E7D32)),
-                              ),
+                              Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2E7D32))),
                               IconButton(
                                 icon: const Icon(Icons.add, size: 18, color: Color(0xFF2E7D32)),
-                                onPressed: () {
-                                  setState(() => selections[item.name] = qty + 1);
-                                },
+                                onPressed: () => setState(() => selections[item.name] = qty + 1),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
@@ -727,7 +731,6 @@ class _ModifierSelectorState extends State<ModifierSelector> {
                     ));
                   }
                 });
-                
                 widget.onModifiersSelected(result);
                 Navigator.pop(context);
               },

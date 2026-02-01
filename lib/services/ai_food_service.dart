@@ -9,7 +9,7 @@ class AiFoodService {
 
   Future<Map<String, dynamic>> identifyFood(File imageFile) async {
     print("------------------------------------------------");
-    print("DEBUG: 🚀 Starting Image Analysis...");
+    print("DEBUG: 🚀 Starting Volumetric Food Analysis...");
     
     try {
       final bytes = await imageFile.readAsBytes();
@@ -17,7 +17,7 @@ class AiFoodService {
       print("DEBUG: 📸 Image converted to Base64 (${bytes.lengthInBytes} bytes)");
 
       final requestBody = jsonEncode({
-        // ✅ KEEPING YOUR MODEL to prevent API errors
+        // ✅ RESTORED YOUR WORKING MODEL
         "model": "meta-llama/llama-4-scout-17b-16e-instruct", 
         
         "messages": [
@@ -26,24 +26,28 @@ class AiFoodService {
             "content": [
               {
                 "type": "text", 
-                // ✅ UPDATED PROMPT: Added Micronutrients for Medical Report
-                "text": "Identify the food in this image. "
-                        "Return a JSON object with keys: "
-                        "1. 'is_food' (boolean): true if edible food. "
-                        "2. 'items' (list): Detected foods with: "
-                        "   - 'name' (string) "
-                        "   - 'calories' (number) "
-                        "   - 'protein' (g, number) "
-                        "   - 'carbs' (g, number) "
-                        "   - 'fat' (g, number) "
-                        "   - 'fiber' (g, number) "
-                        "   - 'sugar' (g, number) "       // <-- Added
-                        "   - 'sodium' (mg, number) "     // <-- Added
-                        "   - 'cholesterol' (mg, number) "// <-- Added
-                        "   - 'iron' (mg, number) "       // <-- Added
-                        "   - 'potassium' (mg, number) "  // <-- Added
-                        "3. 'reason' (string): If not food, explain why. "
-                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Roti\", \"calories\": 100, \"protein\": 3, \"carbs\": 18, \"fat\": 2, \"sugar\": 1, \"sodium\": 5, \"cholesterol\": 0, \"iron\": 1, \"potassium\": 50}]}"
+                // ✅ UPDATED PROMPT: Added Volumetric & Weight Estimation Requests
+                "text": "Identify the food in this image for a medical nutrition report. "
+                        "1. Analyze the image to identify food items. "
+                        "2. ESTIMATE VOLUME/WEIGHT: Look at the plate size (assume 10-inch standard) or container depth. "
+                        "3. Return a JSON object with keys: "
+                        "   - 'is_food' (boolean) "
+                        "   - 'items' (list): "
+                        "     * 'name' (string) "
+                        "     * 'estimated_weight_g' (number) : Best guess of weight in grams (e.g. 150, 300). "
+                        "     * 'portion_desc' (string) : E.g., '1 cup', '2 slices', '1 large bowl'. "
+                        "     * 'calories' (number) : Total calories for this SPECIFIC estimated volume. "
+                        "     * 'protein' (g, number) "
+                        "     * 'carbs' (g, number) "
+                        "     * 'fat' (g, number) "
+                        "     * 'fiber' (g, number) "
+                        "     * 'sugar' (g, number) "
+                        "     * 'sodium' (mg, number) "
+                        "     * 'cholesterol' (mg, number) "
+                        "     * 'iron' (mg, number) "
+                        "     * 'potassium' (mg, number) "
+                        "   - 'reason' (string) "
+                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Rice\", \"estimated_weight_g\": 200, \"portion_desc\": \"1 full bowl\", \"calories\": 260, \"protein\": 5, ...}]}"
               },
               {
                 "type": "image_url",
@@ -71,13 +75,10 @@ class AiFoodService {
       ).timeout(const Duration(seconds: 30));
 
       print("DEBUG: 📥 Response Code: ${response.statusCode}");
-      // print("DEBUG: 📄 Raw Body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final String content = data['choices'][0]['message']['content'];
-        
-        // Clean markdown if present
         final cleanJson = content.replaceAll('```json', '').replaceAll('```', '').trim();
         return jsonDecode(cleanJson);
       } else {

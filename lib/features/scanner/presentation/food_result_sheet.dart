@@ -20,18 +20,14 @@ class FoodResultSheet extends ConsumerStatefulWidget {
 }
 
 class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
-  late Map<String, dynamic> currentItem;
-  double portionMultiplier = 1.0;
-  int itemCount = 1;
+  // ✅ STORE ALL DETECTED ITEMS
+  List<Map<String, dynamic>> allItems = [];
+  int selectedIndex = 0; // Which tab is active
+
   String selectedMealType = 'Breakfast';
-  List<ModifierItem> modifiers = [];
   bool isLoadingAI = false;
   bool isSaving = false;
   String? aiSuggestion;
-
-  // NEW: UI Variables for Volume Detection
-  String? detectedPortionDesc;
-  double? detectedWeight;
 
   final List<String> mealTypes = [
     'Breakfast', 'Morning Snack', 'Lunch', 'Evening Snack', 'Dinner', 'Late Night Snack'
@@ -40,16 +36,16 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
   @override
   void initState() {
     super.initState();
-    final items = widget.data['items'] as List<dynamic>? ?? [];
-    if (items.isNotEmpty) {
-      currentItem = Map<String, dynamic>.from(items[0]);
-      
-      // ✅ CAPTURE AI VOLUME DATA (If available from the model)
-      if (currentItem.containsKey('portion_desc')) {
-        detectedPortionDesc = currentItem['portion_desc'];
-      }
-      if (currentItem.containsKey('estimated_weight_g')) {
-        detectedWeight = (currentItem['estimated_weight_g'] as num).toDouble();
+    final rawItems = widget.data['items'] as List<dynamic>? ?? [];
+    
+    // Initialize local state for EACH item
+    if (rawItems.isNotEmpty) {
+      for (var item in rawItems) {
+        final map = Map<String, dynamic>.from(item);
+        map['local_portion_multiplier'] = 1.0;
+        map['local_item_count'] = 1;
+        map['local_modifiers'] = <ModifierItem>[]; 
+        allItems.add(map);
       }
     }
     _getMealTypeFromTime();
@@ -65,34 +61,86 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
     else selectedMealType = 'Late Night Snack';
   }
 
+  // --- HELPERS FOR CURRENTLY SELECTED ITEM ---
+  Map<String, dynamic> get currentItem => allItems[selectedIndex];
+  
+  double get currentMultiplier => currentItem['local_portion_multiplier'];
+  set currentMultiplier(double v) => currentItem['local_portion_multiplier'] = v;
+
+  int get currentCount => currentItem['local_item_count'];
+  set currentCount(int v) => currentItem['local_item_count'] = v;
+
+  List<ModifierItem> get currentModifiers => currentItem['local_modifiers'];
+  set currentModifiers(List<ModifierItem> v) => currentItem['local_modifiers'] = v;
+
+  // --- CALCULATIONS ---
   double _getAdjustedValue(num? value) {
     if (value == null) return 0;
-    return value * portionMultiplier * itemCount;
+    return value * currentMultiplier * currentCount;
   }
 
-  // --- CALCULATION LOGIC ---
-  double _getTotalCalories() {
-    final base = _getAdjustedValue(currentItem['calories']);
-    final mods = modifiers.fold(0.0, (sum, mod) => sum + (mod.calories * mod.quantity));
-    return base + mods;
+  // Calculate calories for a SPECIFIC item map (used for totals)
+  double _calculateItemCalories(Map<String, dynamic> item) {
+    double base = (item['calories'] ?? 0) * (item['local_portion_multiplier'] ?? 1.0) * (item['local_item_count'] ?? 1);
+    List<ModifierItem> mods = item['local_modifiers'] ?? [];
+    double modCals = mods.fold(0.0, (sum, mod) => sum + (mod.calories * mod.quantity));
+    return base + modCals;
   }
 
-  double _getTotalProtein() {
-    final base = _getAdjustedValue(currentItem['protein']);
-    final mods = modifiers.fold(0.0, (sum, mod) => sum + (mod.protein * mod.quantity));
-    return base + mods;
+  // Current Item Macros
+  double _getCurrentCalories() => _calculateItemCalories(currentItem);
+  double _getCurrentProtein() => _getAdjustedValue(currentItem['protein']) + currentModifiers.fold(0, (s, m) => s + m.protein * m.quantity);
+  double _getCurrentCarbs() => _getAdjustedValue(currentItem['carbs']) + currentModifiers.fold(0, (s, m) => s + m.carbs * m.quantity);
+  double _getCurrentFat() => _getAdjustedValue(currentItem['fat']) + currentModifiers.fold(0, (s, m) => s + m.fat * m.quantity);
+
+  // Whole Meal Total
+  double _getWholeMealCalories() {
+    return allItems.fold(0.0, (sum, item) => sum + _calculateItemCalories(item));
   }
 
-  double _getTotalCarbs() {
-    final base = _getAdjustedValue(currentItem['carbs']);
-    final mods = modifiers.fold(0.0, (sum, mod) => sum + (mod.carbs * mod.quantity));
-    return base + mods;
+  // --- DELETE ITEM LOGIC ---
+  void _deleteCurrentItem() {
+    setState(() {
+      allItems.removeAt(selectedIndex);
+      // Adjust selection index if needed
+      if (selectedIndex >= allItems.length) {
+        selectedIndex = allItems.length - 1;
+      }
+      if (selectedIndex < 0) selectedIndex = 0;
+    });
   }
 
-  double _getTotalFat() {
-    final base = _getAdjustedValue(currentItem['fat']);
-    final mods = modifiers.fold(0.0, (sum, mod) => sum + (mod.fat * mod.quantity));
-    return base + mods;
+  // --- RENAME ITEM LOGIC ---
+  void _renameCurrentItem() {
+    TextEditingController controller = TextEditingController(text: currentItem['name']);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Rename Item"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: "Enter new name"),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                setState(() {
+                  currentItem['name'] = controller.text;
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save", style: TextStyle(color: Color(0xFF2E7D32))),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- AI CHAT LOGIC ---
@@ -100,12 +148,13 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
     setState(() => isLoadingAI = true);
     final nutriaService = NutriaService();
     
-    // Pass the estimated weight to Nutria for context
+    String mealSummary = allItems.map((i) => "${i['name']} (${_calculateItemCalories(i).toInt()} kcal)").join(", ");
+
     final String prompt = """
-    I am eating ${currentItem['name']} for $selectedMealType.
-    Detected Volume: ${detectedPortionDesc ?? 'Standard'} (${detectedWeight ?? 'N/A'}g).
-    Total: ${_getTotalCalories().toInt()} kcal.
-    Is this balanced? Suggest 1 small tweak.
+    I am eating a meal consisting of: $mealSummary.
+    Total Calories: ${_getWholeMealCalories().toInt()}.
+    Meal Type: $selectedMealType.
+    Is this combination balanced? Suggest 1 improvement.
     """;
 
     final suggestion = await nutriaService.getChatResponse(message: prompt, history: []);
@@ -116,7 +165,6 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
     _showNutriaDialog();
   }
 
-  // ... (Dialog methods _showNutriaDialog and _showModifierDialog remain exactly the same as previous)
   void _showNutriaDialog() {
     showModalBottomSheet(
       context: context,
@@ -148,7 +196,7 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Nutira AI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text('Smart Suggestion', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('Meal Analysis', style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
@@ -161,8 +209,8 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                 padding: const EdgeInsets.all(24),
                 child: SingleChildScrollView(
                   child: Text(
-                    aiSuggestion ?? 'Analyzing...',
-                    style: const TextStyle(fontSize: 16, height: 1.5),
+                    aiSuggestion ?? 'Analyzing full meal...',
+                    style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
                   ),
                 ),
               ),
@@ -181,15 +229,15 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
       builder: (context) => ModifierSelector(
         onModifiersSelected: (selectedModifiers) {
           setState(() {
-            modifiers = selectedModifiers;
+            currentItem['local_modifiers'] = selectedModifiers;
           });
         },
-        currentModifiers: modifiers,
+        currentModifiers: currentItem['local_modifiers'],
       ),
     );
   }
 
-  Future<void> _saveMeal() async {
+  Future<void> _saveAllItems() async {
     setState(() => isSaving = true);
     try {
       final currentUser = AuthService.getCurrentUser();
@@ -197,54 +245,56 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
 
       final isarService = ref.read(isarProvider);
 
-      double modCal = 0, modProt = 0, modCarbs = 0, modFat = 0;
-      List<String> modNames = [];
-      
-      for (var mod in modifiers) {
-        double qty = mod.quantity.toDouble();
-        modCal += mod.calories * qty;
-        modProt += mod.protein * qty;
-        modCarbs += mod.carbs * qty;
-        modFat += mod.fat * qty;
-        modNames.add("${mod.name} x${mod.quantity}");
+      for (var item in allItems) {
+        double mult = item['local_portion_multiplier'];
+        int count = item['local_item_count'];
+        List<ModifierItem> mods = item['local_modifiers'];
+
+        double adj(key) => ((item[key] ?? 0) * mult * count).toDouble();
+
+        double modCal = mods.fold(0, (s, m) => s + m.calories * m.quantity);
+        double modProt = mods.fold(0, (s, m) => s + m.protein * m.quantity);
+        double modCarbs = mods.fold(0, (s, m) => s + m.carbs * m.quantity);
+        double modFat = mods.fold(0, (s, m) => s + m.fat * m.quantity);
+        List<String> modNames = mods.map((m) => "${m.name} x${m.quantity}").toList();
+
+        final foodLog = FoodLog()
+          ..userId = currentUser.id
+          ..foodName = item['name']
+          ..mealType = selectedMealType
+          ..calories = (item['calories'] ?? 0).toDouble()
+          ..protein = (item['protein'] ?? 0).toDouble()
+          ..carbs = (item['carbs'] ?? 0).toDouble()
+          ..fat = (item['fat'] ?? 0).toDouble()
+          ..fiber = (item['fiber'] ?? 0).toDouble()
+          ..sugar = (item['sugar'] ?? 0).toDouble()
+          ..sodium = (item['sodium'] ?? 0).toDouble()
+          ..cholesterol = (item['cholesterol'] ?? 0).toDouble()
+          ..iron = (item['iron'] ?? 0).toDouble()
+          ..potassium = (item['potassium'] ?? 0).toDouble()
+          ..portionSize = mult
+          ..itemCount = count.toDouble()
+          ..totalCalories = adj('calories') + modCal
+          ..totalProtein = adj('protein') + modProt
+          ..totalCarbs = adj('carbs') + modCarbs
+          ..totalFat = adj('fat') + modFat
+          ..totalFiber = adj('fiber')
+          ..modifiers = modNames
+          ..modifierCalories = modCal
+          ..modifierProtein = modProt
+          ..modifierCarbs = modCarbs
+          ..modifierFat = modFat
+          ..imagePath = widget.imagePath
+          ..timestamp = DateTime.now()
+          ..isSynced = false;
+
+        await isarService.addFoodLog(foodLog);
       }
-
-      final foodLog = FoodLog()
-        ..userId = currentUser.id
-        ..foodName = currentItem['name']
-        ..mealType = selectedMealType
-        ..calories = (currentItem['calories'] ?? 0).toDouble()
-        ..protein = (currentItem['protein'] ?? 0).toDouble()
-        ..carbs = (currentItem['carbs'] ?? 0).toDouble()
-        ..fat = (currentItem['fat'] ?? 0).toDouble()
-        ..fiber = (currentItem['fiber'] ?? 0).toDouble()
-        ..sugar = (currentItem['sugar'] ?? 0).toDouble()
-        ..sodium = (currentItem['sodium'] ?? 0).toDouble()
-        ..cholesterol = (currentItem['cholesterol'] ?? 0).toDouble()
-        ..iron = (currentItem['iron'] ?? 0).toDouble()
-        ..potassium = (currentItem['potassium'] ?? 0).toDouble()
-        ..portionSize = portionMultiplier
-        ..itemCount = itemCount.toDouble()
-        ..totalCalories = _getTotalCalories()
-        ..totalProtein = _getTotalProtein()
-        ..totalCarbs = _getTotalCarbs()
-        ..totalFat = _getTotalFat()
-        ..totalFiber = _getAdjustedValue(currentItem['fiber'])
-        ..modifiers = modNames
-        ..modifierCalories = modCal
-        ..modifierProtein = modProt
-        ..modifierCarbs = modCarbs
-        ..modifierFat = modFat
-        ..imagePath = widget.imagePath
-        ..timestamp = DateTime.now()
-        ..isSynced = false;
-
-      await isarService.addFoodLog(foodLog);
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Meal logged!'), backgroundColor: Color(0xFF2E7D32)),
+          SnackBar(content: Text('✅ Logged ${allItems.length} items!'), backgroundColor: const Color(0xFF2E7D32)),
         );
       }
     } catch (e) {
@@ -258,9 +308,41 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final items = widget.data['items'] as List<dynamic>? ?? [];
-    if (items.isEmpty) {
-      return Container(padding: const EdgeInsets.all(20), child: const Text('No food detected'));
+    // Handle empty state (if user deletes all items)
+    if (allItems.isEmpty) {
+      return Container(
+        height: MediaQuery.of(context).size.height * 0.5,
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 20),
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+            const Icon(Icons.remove_shopping_cart_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('No items left to log', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('Close'),
+              ),
+            )
+          ],
+        ),
+      );
     }
 
     return Container(
@@ -277,74 +359,119 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
             decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
           ),
           
+          // --- HEADER: MEAL TYPE & TOTAL ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              children: [
+                // Meal Type
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: DropdownButton<String>(
+                    value: selectedMealType,
+                    underline: const SizedBox(),
+                    isDense: true,
+                    icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF2E7D32)),
+                    items: mealTypes.map((type) => DropdownMenuItem(
+                      value: type, 
+                      child: Text(type, style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 13))
+                    )).toList(),
+                    onChanged: (value) => setState(() => selectedMealType = value!),
+                  ),
+                ),
+                const Spacer(),
+                // Total Summary
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text("MEAL TOTAL", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                    Text(
+                      "${_getWholeMealCalories().toInt()} kcal", 
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF2E7D32))
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // --- HORIZONTAL ITEM SELECTOR ---
+          Container(
+            height: 50,
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              scrollDirection: Axis.horizontal,
+              itemCount: allItems.length,
+              separatorBuilder: (c, i) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final isSelected = index == selectedIndex;
+                return ChoiceChip(
+                  label: Text(allItems[index]['name'] ?? 'Item ${index + 1}'),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    setState(() => selectedIndex = index);
+                  },
+                  selectedColor: const Color(0xFF2E7D32),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  backgroundColor: Colors.grey[100],
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                );
+              },
+            ),
+          ),
+
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- MEAL TYPE SELECTOR ---
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2E7D32).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: DropdownButton<String>(
-                      value: selectedMealType,
-                      underline: const SizedBox(),
-                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF2E7D32)),
-                      items: mealTypes.map((type) {
-                        return DropdownMenuItem(
-                          value: type,
-                          child: Text(type, style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
-                        );
-                      }).toList(),
-                      onChanged: (value) => setState(() => selectedMealType = value!),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // --- FOOD NAME & COUNT ---
+                  // --- ITEM HEADER (Name & Actions) ---
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          currentItem['name'] ?? 'Unknown',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        child: GestureDetector(
+                          onTap: _renameCurrentItem, // Tap to rename
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  currentItem['name'] ?? 'Unknown',
+                                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.edit, size: 18, color: Colors.grey),
+                            ],
+                          ),
                         ),
                       ),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove, size: 20),
-                              onPressed: () {
-                                if (itemCount > 1) setState(() => itemCount--);
-                              },
-                            ),
-                            Text('$itemCount', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 20),
-                              onPressed: () => setState(() => itemCount++),
-                            ),
-                          ],
-                        ),
+                      // DELETE BUTTON
+                      IconButton(
+                        onPressed: _deleteCurrentItem,
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: "Remove Item",
                       ),
                     ],
                   ),
 
-                  // ✅ NEW: AI DETECTED VOLUME INFO ✅
-                  if (detectedWeight != null)
+                  // AI Volume Info
+                  if (currentItem['portion_desc'] != null)
                     Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.only(top: 4, bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.purple.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(8),
@@ -353,25 +480,19 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.analytics_outlined, size: 16, color: Colors.purple),
-                          const SizedBox(width: 8),
+                          const Icon(Icons.analytics_outlined, size: 14, color: Colors.purple),
+                          const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              "AI Detected: $detectedPortionDesc (~${detectedWeight}g)",
-                              style: const TextStyle(
-                                fontSize: 13, 
-                                color: Colors.purple, 
-                                fontWeight: FontWeight.w600
-                              ),
+                              "AI Detected: ${currentItem['portion_desc']} (~${currentItem['estimated_weight_g'] ?? '?'}g)",
+                              style: const TextStyle(fontSize: 12, color: Colors.purple, fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                  const SizedBox(height: 20),
-
-                  // --- TOTAL CALORIES CARD ---
+                  // Item Calories
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -382,11 +503,11 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                       children: [
                         const Icon(Icons.local_fire_department, color: Colors.orange, size: 32),
                         const SizedBox(width: 12),
-                        const Text('Total Calories', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                        const Text('Item Calories', style: TextStyle(fontSize: 16, color: Colors.grey)),
                         const Spacer(),
                         Text(
-                          '${_getTotalCalories().toInt()}',
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                          '${_getCurrentCalories().toInt()}',
+                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                       ],
                     ),
@@ -394,32 +515,63 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
 
                   const SizedBox(height: 20),
 
-                  // --- PORTION SLIDER ---
-                  Text('Portion Size: ${portionMultiplier.toStringAsFixed(1)}x', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  // Portion Slider
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Portion Size: ${currentMultiplier.toStringAsFixed(1)}x', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      // Item Count Stepper inside Portion Row
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove, size: 16),
+                              onPressed: () {
+                                if (currentCount > 1) setState(() => currentCount--);
+                              },
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                            Text('$currentCount', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 16),
+                              onPressed: () => setState(() => currentCount++),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   Slider(
-                    value: portionMultiplier,
+                    value: currentMultiplier,
                     min: 0.5,
                     max: 3.0,
                     divisions: 10,
                     activeColor: const Color(0xFF2E7D32),
-                    label: '${portionMultiplier.toStringAsFixed(1)}x',
-                    onChanged: (value) => setState(() => portionMultiplier = value),
+                    label: '${currentMultiplier.toStringAsFixed(1)}x',
+                    onChanged: (value) => setState(() => currentMultiplier = value),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // --- MACROS GRID ---
+                  // Macros Grid
                   Row(
                     children: [
-                      Expanded(child: _buildMacroCard('Protein', _getTotalProtein(), Colors.red[100]!, Icons.egg_outlined)),
+                      Expanded(child: _buildMacroCard('Protein', _getCurrentProtein(), Colors.red[100]!, Icons.egg_outlined)),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildMacroCard('Carbs', _getTotalCarbs(), Colors.orange[100]!, Icons.grain)),
+                      Expanded(child: _buildMacroCard('Carbs', _getCurrentCarbs(), Colors.orange[100]!, Icons.grain)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildMacroCard('Fat', _getTotalFat(), Colors.blue[100]!, Icons.water_drop_outlined)),
+                      Expanded(child: _buildMacroCard('Fat', _getCurrentFat(), Colors.blue[100]!, Icons.water_drop_outlined)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Container(
@@ -430,11 +582,11 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                           ),
                           child: Column(
                             children: [
-                              Icon(Icons.restaurant, color: Colors.grey[600]),
+                              const Icon(Icons.list, color: Colors.grey),
                               const SizedBox(height: 8),
-                              const Text('Items', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text('Item Index', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               const SizedBox(height: 4),
-                              Text('$itemCount', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              Text('${selectedIndex + 1}/${allItems.length}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -444,7 +596,7 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
 
                   const SizedBox(height: 24),
 
-                  // --- MODIFIERS SECTION ---
+                  // Modifiers Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -456,78 +608,38 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                       ),
                     ],
                   ),
-                  if (modifiers.isNotEmpty)
+                  if (currentModifiers.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: modifiers.map((mod) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.add_circle_outline, size: 20, color: Color(0xFF2E7D32)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text("${mod.name} (x${mod.quantity})", style: const TextStyle(fontSize: 14)),
-                                ),
-                                Text(
-                                  '+${(mod.calories * mod.quantity).toInt()} cal',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.orange),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 18),
-                                  onPressed: () => setState(() => modifiers.remove(mod)),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                      decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+                      child: Column(children: currentModifiers.map((mod) => _buildModifierRow(mod)).toList()),
                     )
                   else
                     const Text('No modifiers added', style: TextStyle(color: Colors.grey, fontSize: 14)),
 
                   const SizedBox(height: 24),
 
-                  // --- ASK NUTRIA ---
-                  OutlinedButton.icon(
-                    onPressed: isLoadingAI ? null : _askNutria,
-                    icon: isLoadingAI
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.auto_awesome, color: Color(0xFF2E7D32)),
-                    label: const Text('Ask Nutira for advice', style: TextStyle(fontSize: 16, color: Color(0xFF2E7D32))),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: Color(0xFF2E7D32), width: 2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // --- ACTION BUTTONS ---
+                  // Action Buttons
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: isLoadingAI ? null : _askNutria,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.grey[400]!),
+                            side: const BorderSide(color: Color(0xFF2E7D32), width: 2),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Cancel', style: TextStyle(fontSize: 16, color: Colors.black87)),
+                          child: isLoadingAI
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('Analyze Full Meal', style: TextStyle(fontSize: 16, color: Color(0xFF2E7D32))),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
-                          onPressed: isSaving ? null : _saveMeal,
+                          onPressed: isSaving ? null : _saveAllItems,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2E7D32),
                             foregroundColor: Colors.white,
@@ -536,7 +648,7 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                           ),
                           child: isSaving
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text('Log Meal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              : Text('Log All (${allItems.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -550,13 +662,28 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
     );
   }
 
+  Widget _buildModifierRow(ModifierItem mod) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.add_circle_outline, size: 20, color: Color(0xFF2E7D32)),
+          const SizedBox(width: 8),
+          Expanded(child: Text("${mod.name} (x${mod.quantity})", style: const TextStyle(fontSize: 14))),
+          Text('+${(mod.calories * mod.quantity).toInt()} cal', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.orange)),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: () => setState(() => currentModifiers.remove(mod)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMacroCard(String label, double value, Color bgColor, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
           Icon(icon, color: Colors.black54, size: 28),
@@ -570,8 +697,7 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
   }
 }
 
-// ... (ModifierSelector classes remain the same as previous turn)
-// Re-paste ModifierItem and ModifierSelector code here if needed or assume it's in the same file.
+// ... (Keep ModifierItem and ModifierSelector classes here)
 class ModifierItem {
   final String name;
   final double calories;

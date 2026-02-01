@@ -9,7 +9,7 @@ class AiFoodService {
 
   Future<Map<String, dynamic>> identifyFood(File imageFile) async {
     print("------------------------------------------------");
-    print("DEBUG: 🚀 Starting Volumetric Food Analysis...");
+    print("DEBUG: 🚀 Starting Multi-Item Thali Analysis...");
     
     try {
       final bytes = await imageFile.readAsBytes();
@@ -17,7 +17,6 @@ class AiFoodService {
       print("DEBUG: 📸 Image converted to Base64 (${bytes.lengthInBytes} bytes)");
 
       final requestBody = jsonEncode({
-        // ✅ RESTORED YOUR WORKING MODEL
         "model": "meta-llama/llama-4-scout-17b-16e-instruct", 
         
         "messages": [
@@ -26,28 +25,19 @@ class AiFoodService {
             "content": [
               {
                 "type": "text", 
-                // ✅ UPDATED PROMPT: Added Volumetric & Weight Estimation Requests
-                "text": "Identify the food in this image for a medical nutrition report. "
-                        "1. Analyze the image to identify food items. "
-                        "2. ESTIMATE VOLUME/WEIGHT: Look at the plate size (assume 10-inch standard) or container depth. "
+                // ✅ UPDATED PROMPT: SPECIFICALLY FOR THALI / MULTI-ITEM
+                "text": "Analyze this food image for a nutrition log. "
+                        "1. DETECTION: If this is a Thali or combo meal, DETECT EVERY DISTINCT ITEM separately (e.g., Roti, Rice, Dal, Curd, Veggie 1, Veggie 2). "
+                        "2. ESTIMATION: Estimate the volume/weight for EACH item based on standard bowl sizes (katori). "
                         "3. Return a JSON object with keys: "
                         "   - 'is_food' (boolean) "
-                        "   - 'items' (list): "
+                        "   - 'items' (list of objects): "
                         "     * 'name' (string) "
-                        "     * 'estimated_weight_g' (number) : Best guess of weight in grams (e.g. 150, 300). "
-                        "     * 'portion_desc' (string) : E.g., '1 cup', '2 slices', '1 large bowl'. "
-                        "     * 'calories' (number) : Total calories for this SPECIFIC estimated volume. "
-                        "     * 'protein' (g, number) "
-                        "     * 'carbs' (g, number) "
-                        "     * 'fat' (g, number) "
-                        "     * 'fiber' (g, number) "
-                        "     * 'sugar' (g, number) "
-                        "     * 'sodium' (mg, number) "
-                        "     * 'cholesterol' (mg, number) "
-                        "     * 'iron' (mg, number) "
-                        "     * 'potassium' (mg, number) "
+                        "     * 'estimated_weight_g' (number) "
+                        "     * 'portion_desc' (string) : e.g., '1 small bowl', '2 pieces'. "
+                        "     * 'calories' (number) : Total calories for this specific item's portion. "
+                        "     * 'protein' (g), 'carbs' (g), 'fat' (g), 'fiber' (g), 'sugar' (g), 'sodium' (mg), 'cholesterol' (mg), 'iron' (mg), 'potassium' (mg). "
                         "   - 'reason' (string) "
-                        "Example: {\"is_food\": true, \"items\": [{\"name\": \"Rice\", \"estimated_weight_g\": 200, \"portion_desc\": \"1 full bowl\", \"calories\": 260, \"protein\": 5, ...}]}"
               },
               {
                 "type": "image_url",

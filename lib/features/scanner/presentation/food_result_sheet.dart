@@ -632,7 +632,7 @@ class _FoodResultSheetState extends ConsumerState<FoodResultSheet> {
                           ),
                           child: isLoadingAI
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Text('Analyze Full Meal', style: TextStyle(fontSize: 16, color: Color(0xFF2E7D32))),
+                              : const Text('Analyze', style: TextStyle(fontSize: 16, color: Color(0xFF2E7D32))),
                         ),
                       ),
                       const SizedBox(width: 12),

@@ -25,6 +25,11 @@ class RecommendationProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   String _currentMealType = '';
+  
+  // Weekly plan state
+  Map<String, dynamic>? _weeklyPlan;
+  bool _isLoadingWeeklyPlan = false;
+  String? _weeklyPlanError;
 
   List<Map<String, dynamic>> get recommendations => _recommendations;
   String? get patternInsight => _patternInsight;
@@ -32,6 +37,11 @@ class RecommendationProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get currentMealType => _currentMealType;
+  
+  // Weekly plan getters
+  Map<String, dynamic>? get weeklyPlan => _weeklyPlan;
+  bool get isLoadingWeeklyPlan => _isLoadingWeeklyPlan;
+  String? get weeklyPlanError => _weeklyPlanError;
 
   /// Load meal recommendations for current meal time
   Future<void> loadRecommendations() async {
@@ -187,5 +197,54 @@ class RecommendationProvider with ChangeNotifier {
       });
     }
     await loadRecommendations();
+  }
+
+  /// Load weekly diet plan
+  Future<void> loadWeeklyPlan() async {
+    _isLoadingWeeklyPlan = true;
+    _weeklyPlanError = null;
+    notifyListeners();
+
+    try {
+      // 1. Fetch recent meals
+      final recentMeals = await _patternAnalyzer.getRecentMeals(14); // 2 weeks for better context
+      
+      if (recentMeals.isEmpty) {
+        _weeklyPlanError = 'Log some meals first to get a personalized weekly plan';
+        _isLoadingWeeklyPlan = false;
+        notifyListeners();
+        return;
+      }
+
+      // 2. Get User Profile
+      final userProfile = await _getUserProfile();
+      
+      // 3. Calculate Daily Target
+      final dailyTarget = _patternAnalyzer.calculateDailyCalorieTarget(userProfile);
+
+      // 4. Call AI Service
+      print("DEBUG: Generating weekly plan...");
+      final result = await _groqService.generateWeeklyDietPlan(
+        userProfile: userProfile,
+        recentMeals: recentMeals,
+        dailyCalorieTarget: dailyTarget,
+      );
+
+      _weeklyPlan = result;
+
+    } catch (e, stackTrace) {
+      print('ERROR loading weekly plan: $e');
+      print(stackTrace);
+      _weeklyPlanError = 'Failed to load weekly plan. $e';
+    }
+
+    _isLoadingWeeklyPlan = false;
+    notifyListeners();
+  }
+
+  /// Refresh weekly plan (clear and regenerate)
+  Future<void> refreshWeeklyPlan() async {
+    _weeklyPlan = null;
+    await loadWeeklyPlan();
   }
 }

@@ -1,7 +1,7 @@
 // lib/features/nutria_chat/presentation/chat_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart'; // IMPORT THIS
+import 'package:flutter_markdown/flutter_markdown.dart'; 
 import '../../../services/nutria_service.dart';
 
 class ChatScreen extends StatefulWidget {

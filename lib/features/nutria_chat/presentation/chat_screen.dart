@@ -144,6 +144,9 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: TextField(
                 controller: _controller,
+                maxLines: 8,
+                minLines: 1,
+                keyboardType: TextInputType.multiline,
                 decoration: InputDecoration(
                   hintText: 'Type your question...',
                   border: OutlineInputBorder(
@@ -152,9 +155,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   filled: true,
                   fillColor: Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
-                onSubmitted: (_) => _sendMessage(),
               ),
             ),
             const SizedBox(width: 8),
